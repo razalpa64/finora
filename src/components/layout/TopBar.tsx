@@ -7,13 +7,10 @@ import {
   Maximize2,
   Minimize2,
   Cloud,
-  CloudCheck,
   RefreshCw,
   Sun,
   Moon,
   Sparkles,
-  ShieldCheck,
-  Coins,
   ChevronDown,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -32,7 +29,6 @@ export const TopBar: React.FC = () => {
     syncToSupabase,
     brainState,
     setPage,
-    showToast,
   } = useApp();
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -44,7 +40,6 @@ export const TopBar: React.FC = () => {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-    year: 'numeric',
   });
 
   const handleSyncClick = async () => {
@@ -70,36 +65,34 @@ export const TopBar: React.FC = () => {
   );
 
   return (
-    <header className="h-16 bg-[#0f121d]/80 backdrop-blur-xl border-b border-white/5 px-4 lg:px-6 flex items-center justify-between sticky top-0 z-30">
-      {/* Left section: Hamburger (Mobile) + Global Search / Command Bar */}
-      <div className="flex items-center gap-3 flex-1 max-w-xl">
+    <header className="h-16 bg-[#0c0e17]/85 backdrop-blur-xl border-b border-white/5 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30">
+      {/* Left: Mobile Drawer Trigger & Command Bar */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-lg">
         <button
           onClick={() => setIsMobileDrawerOpen(true)}
-          className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 lg:hidden transition-colors"
+          className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 lg:hidden transition-colors shrink-0"
           title="Open Menu"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Global Search & Command trigger */}
+        {/* Global Spotlight trigger */}
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="w-full flex items-center justify-between gap-3 px-3.5 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-xl text-slate-400 hover:text-slate-200 text-xs sm:text-sm transition-all group"
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 rounded-xl text-slate-400 hover:text-slate-200 text-xs transition-all group"
         >
-          <div className="flex items-center gap-2.5 truncate">
-            <Search className="w-4 h-4 text-slate-400 group-hover:text-purple-400 transition-colors shrink-0" />
-            <span className="truncate">Ask FINORA Brain or search records…</span>
+          <div className="flex items-center gap-2 truncate">
+            <Search className="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400 transition-colors shrink-0" />
+            <span className="truncate">Ask Brain or search records…</span>
           </div>
-          <div className="hidden sm:flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-[10px] font-mono text-slate-300 font-bold border border-white/10">
-              ⌘K
-            </kbd>
-          </div>
+          <kbd className="hidden sm:inline px-1.5 py-0.5 bg-white/5 rounded text-[10px] font-mono text-slate-400 border border-white/10">
+            ⌘K
+          </kbd>
         </button>
       </div>
 
-      {/* Right section: Cloud sync status, Currency, Theme toggle, Notifications, Quick Add */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+      {/* Right: Cloud Sync, Currency, Theme, Signals Bell, Quick Add */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-2">
         {/* Supabase Status Pill */}
         <div className="hidden md:flex items-center">
           {supabaseConfig.url && supabaseConfig.anonKey ? (
@@ -131,16 +124,16 @@ export const TopBar: React.FC = () => {
           )}
         </div>
 
-        {/* Currency Switcher Dropdown */}
+        {/* Currency Switcher */}
         <div className="relative">
           <button
             onClick={() => setIsCurrencyDropdownOpen(!isCurrencyDropdownOpen)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/10 transition-colors"
-            title="Change Display Currency"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white/[0.03] hover:bg-white/[0.06] text-slate-300 border border-white/10 transition-colors"
+            title="Change Currency"
           >
             <span>{SUPPORTED_CURRENCIES[currency]?.symbol || currency}</span>
             <span className="hidden sm:inline text-slate-400">{currency}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+            <ChevronDown className="w-3 h-3 text-slate-500" />
           </button>
 
           {isCurrencyDropdownOpen && (
@@ -177,17 +170,14 @@ export const TopBar: React.FC = () => {
           {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />}
         </button>
 
-        {/* Notifications / Signals Bell */}
+        {/* Signals Bell */}
         <div className="relative">
           <button
             onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
             className="relative p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors"
-            title="FINORA Signals & Recommendations"
+            title="FINORA Signals"
           >
             <Bell className="w-4 h-4" />
-            {highSignals.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            )}
             {highSignals.length > 0 && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
             )}
@@ -204,7 +194,7 @@ export const TopBar: React.FC = () => {
                       FINORA Brain Signals
                     </span>
                   </div>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
                     {brainState.recommendations.length} Active
                   </span>
                 </div>
@@ -249,20 +239,20 @@ export const TopBar: React.FC = () => {
         <button
           onClick={toggleFullscreen}
           className="hidden sm:flex p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors"
-          title={isFullscreen ? 'Exit full screen' : 'Enter full screen (F11)'}
+          title={isFullscreen ? 'Exit full screen' : 'Full screen'}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
 
         {/* Date Display */}
-        <div className="hidden xl:flex text-xs font-semibold text-slate-400 px-2 py-1 rounded-lg bg-white/[0.03]">
+        <div className="hidden xl:flex text-xs font-semibold text-slate-400 px-2.5 py-1 rounded-lg bg-white/[0.03]">
           {todayStr}
         </div>
 
-        {/* Top Quick Add Button */}
+        {/* Quick Add Button */}
         <button
           onClick={() => openQuickAdd()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-md shadow-purple-600/20 active:scale-95 transition-all"
         >
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">Add</span>
