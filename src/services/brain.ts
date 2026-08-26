@@ -1169,3 +1169,6 @@ export function askFinoraBrain(question: string, state: BrainState, currencyCode
     severity: 'HEALTHY',
   };
 }
+
+export const calculateHealthScore = calculateFinancialHealth;
+export const forecastCashFlow = calculateForecast;

@@ -382,3 +382,49 @@ CREATE POLICY "Allow anon all on bills" ON public.bills FOR ALL USING (true) WIT
 CREATE POLICY "Allow anon all on budgets" ON public.budgets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all on investments" ON public.investments FOR ALL USING (true) WITH CHECK (true);
 `;
+
+export async function pullDataFromSupabase(
+  url: string,
+  anonKey: string,
+  userId: string
+): Promise<{ success: boolean; message: string; data?: any }> {
+  try {
+    const client = createClient(url, anonKey);
+    const [
+      accountsRes,
+      incomeRes,
+      txsRes,
+      debtsRes,
+      goalsRes,
+      billsRes,
+      budgetsRes,
+      investmentsRes,
+    ] = await Promise.all([
+      client.from('accounts').select('*').eq('user_id', userId),
+      client.from('income_sources').select('*').eq('user_id', userId),
+      client.from('financial_transactions').select('*').eq('user_id', userId),
+      client.from('debts').select('*').eq('user_id', userId),
+      client.from('goals').select('*').eq('user_id', userId),
+      client.from('bills').select('*').eq('user_id', userId),
+      client.from('budgets').select('*').eq('user_id', userId),
+      client.from('investments').select('*').eq('user_id', userId),
+    ]);
+
+    return {
+      success: true,
+      message: 'Pulled data successfully',
+      data: {
+        accounts: accountsRes.data || [],
+        incomeSources: incomeRes.data || [],
+        transactions: txsRes.data || [],
+        debts: debtsRes.data || [],
+        goals: goalsRes.data || [],
+        bills: billsRes.data || [],
+        budgets: budgetsRes.data || [],
+        investments: investmentsRes.data || [],
+      },
+    };
+  } catch (e: any) {
+    return { success: false, message: e.message || 'Failed to pull data from Supabase' };
+  }
+}

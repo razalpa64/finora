@@ -17,9 +17,9 @@ import {
   TransactionRecord,
   UserProfile,
 } from '../types';
-import { analyzeFinoraBrain, getNextDateAfter } from '../services/brain';
+import { analyzeFinoraBrain, createFinancialSnapshot, calculateSafeToSpend, createMonthlyPlan, calculateHealthScore, forecastCashFlow } from '../services/brain';
 import { StorageData, StorageService } from '../services/storage';
-import { pushDataToSupabase, testSupabaseConnection } from '../services/supabase';
+import { pushDataToSupabase, pullDataFromSupabase, testSupabaseConnection } from '../services/supabase';
 
 export type AppPage =
   | 'overview'
@@ -33,18 +33,63 @@ export type AppPage =
   | 'brain'
   | 'settings';
 
-export interface ToastMessage {
+export interface ToastItem {
   id: string;
-  type: 'success' | 'info' | 'warning' | 'error';
+  title?: string;
   message: string;
+  type?: 'SUCCESS' | 'ERROR' | 'INFO' | 'WARNING' | 'success' | 'error' | 'info' | 'warning';
 }
 
-interface AppContextType {
+export interface CashFlowMetrics {
+  totalIncome: number;
+  totalExpenses: number;
+  netSavings: number;
+  savingsRate: number;
+}
+
+export interface HealthScoreMetrics {
+  score: number;
+  grade: string;
+  status: string;
+  factors: Record<string, number>;
+}
+
+export interface EmergencyFundMetrics {
+  monthsOfRunway: number;
+  targetFundAmount: number;
+  currentEmergencyFund: number;
+  monthlyExpenses: number;
+  gapAmount: number;
+  status: string;
+}
+
+export interface BudgetAnalysisMetrics {
+  needsActual: number;
+  needsTarget: number;
+  needsActualPercent: number;
+  needsStatus: 'ON_TRACK' | 'OVER_BUDGET';
+  wantsActual: number;
+  wantsTarget: number;
+  wantsActualPercent: number;
+  wantsStatus: 'ON_TRACK' | 'OVER_BUDGET';
+  savingsActual: number;
+  savingsTarget: number;
+  savingsActualPercent: number;
+  savingsStatus: 'ON_TRACK' | 'UNDER_TARGET';
+}
+
+export interface DebtPayoffPlanMetrics {
+  debtFreeDate: string;
+  totalInterestPaid: number;
+  monthsToPayoff: number;
+}
+
+export type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'URGENCY' | 'HYBRID';
+
+export interface AppContextType {
   // Navigation & UI
   page: AppPage;
   setPage: (page: AppPage) => void;
-  theme: UserProfile['theme'];
-  setTheme: (theme: UserProfile['theme']) => void;
   currency: string;
   setCurrency: (currency: string) => void;
   isMobileDrawerOpen: boolean;
@@ -53,12 +98,14 @@ interface AppContextType {
   setIsSidebarCollapsed: (collapsed: boolean) => void;
   isQuickAddOpen: boolean;
   setIsQuickAddOpen: (open: boolean) => void;
-  quickAddInitialTab: string;
-  openQuickAdd: (tab?: string) => void;
+  quickAddType?: string;
+  openQuickAdd: (type?: string) => void;
+  closeQuickAdd: () => void;
   isCommandPaletteOpen: boolean;
   setIsCommandPaletteOpen: (open: boolean) => void;
-  toasts: ToastMessage[];
-  showToast: (message: string, type?: ToastMessage['type']) => void;
+  toasts: ToastItem[];
+  addToast: (toast: Omit<ToastItem, 'id'> | string) => void;
+  showToast: (message: string, type?: ToastItem['type']) => void;
 
   // Profile & Auth
   profiles: UserProfile[];
@@ -69,17 +116,29 @@ interface AppContextType {
   loadDemoData: () => void;
   resetToEmptyWorkspace: () => void;
 
-  // Financial Data
+  // Financial Collections
   accounts: Account[];
-  incomeSources: IncomeSource[];
-  transactions: TransactionRecord[];
-  debts: Debt[];
-  goals: Goal[];
+  incomeSources: any[];
+  transactions: any[];
+  debts: any[];
+  goals: any[];
   bills: Bill[];
   budgets: Budget[];
   investments: Investment[];
 
-  // FINORA Brain Calculated State
+  // Calculation Engines & Telemetry
+  cashFlow: CashFlowMetrics;
+  healthScore: HealthScoreMetrics;
+  emergencyFund: EmergencyFundMetrics;
+  budgetAnalysis: BudgetAnalysisMetrics;
+  debtPayoffPlan: DebtPayoffPlanMetrics;
+  debtStrategy: DebtStrategy;
+  setDebtStrategy: (strat: DebtStrategy) => void;
+  debtMonthlyBudget: number;
+  setDebtMonthlyBudget: (amt: number) => void;
+  emergencyFundMonths: number;
+  setEmergencyFundMonths: (months: number) => void;
+  forecast: any;
   brainState: BrainState;
 
   // Data Actions
@@ -87,36 +146,19 @@ interface AppContextType {
   updateAccount: (id: string, name: string, type: AccountType, emergencyFund: boolean) => void;
   deleteAccount: (id: string) => void;
 
-  addIncomeSource: (
-    name: string,
-    amount: number,
-    frequency: IncomeSource['frequency'],
-    nextIncomeDate: string,
-    accountId: string,
-    notes?: string,
-    recordToday?: boolean
-  ) => void;
-  recordIncomeReceipt: (sourceId: string, receivedDate?: string) => void;
+  addIncomeSource: (dataOrName: any, ...rest: any[]) => void;
+  updateIncomeSource: (id: string, updates: any) => void;
   deleteIncomeSource: (id: string) => void;
 
-  addTransaction: (
-    amount: number,
-    type: TransactionRecord['type'],
-    category: string,
-    accountId: string,
-    description: string,
-    relatedAccountId?: string,
-    date?: string,
-    notes?: string
-  ) => void;
+  addTransaction: (dataOrAmount: any, ...rest: any[]) => void;
   deleteTransaction: (id: string) => void;
 
-  addDebt: (debt: Omit<Debt, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
-  recordDebtPayment: (debtId: string, accountId: string, amount: number) => void;
+  addDebt: (dataOrDebt: any) => void;
+  updateDebt: (id: string, updates: any) => void;
   deleteDebt: (id: string) => void;
 
-  addGoal: (goal: Omit<Goal, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
-  contributeToGoal: (goalId: string, accountId: string, amount: number) => void;
+  addGoal: (dataOrGoal: any) => void;
+  updateGoal: (id: string, updates: any) => void;
   deleteGoal: (id: string) => void;
 
   addBill: (bill: Omit<Bill, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => void;
@@ -141,8 +183,10 @@ interface AppContextType {
 
   // Supabase Sync
   supabaseConfig: SupabaseConfig;
+  setSupabaseConfig: (config: Partial<SupabaseConfig>) => void;
   updateSupabaseConfig: (config: Partial<SupabaseConfig>) => void;
   syncToSupabase: () => Promise<boolean>;
+  loadFromSupabase: () => Promise<boolean>;
 
   // Backup
   exportBackup: () => string;
@@ -160,66 +204,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [quickAddInitialTab, setQuickAddInitialTab] = useState('transaction');
+  const [quickAddType, setQuickAddType] = useState<string>('EXPENSE');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  // Simulation controls
+  const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE');
+  const [debtMonthlyBudget, setDebtMonthlyBudget] = useState<number>(0);
+  const [emergencyFundMonths, setEmergencyFundMonths] = useState<number>(6);
 
   const currentProfile = useMemo(() => {
-    return data.profiles.find((p) => p.id === data.currentProfileId) || data.profiles[0] || null;
+    if (!data.currentProfileId) return null;
+    return data.profiles.find((p) => p.id === data.currentProfileId) || null;
   }, [data.profiles, data.currentProfileId]);
 
-  const currency = currentProfile?.currency || 'INR';
-  const theme = currentProfile?.theme || 'dark';
+  const currency = currentProfile?.currency || 'USD';
 
-  // Apply dark/light theme to document body
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('dark', 'light', 'midnight', 'cyberpunk');
-    if (theme === 'dark' || theme === 'midnight' || theme === 'cyberpunk') {
-      root.classList.add('dark');
-      if (theme === 'midnight') root.classList.add('midnight');
-      if (theme === 'cyberpunk') root.classList.add('cyberpunk');
-    } else {
-      root.classList.add('light');
-    }
-  }, [theme]);
-
-  // Global keyboard shortcuts (Cmd+K for search, Escape to close modals)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
-      } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        setIsCommandPaletteOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const showToast = (message: string, type: ToastMessage['type'] = 'success') => {
+  const showToast = (message: string, type: ToastItem['type'] = 'SUCCESS') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
-    setToasts((prev) => [...prev, { id, type, message }]);
+    const normalizedType = String(type).toUpperCase() as ToastItem['type'];
+    setToasts((prev) => [...prev, { id, message, type: normalizedType }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
   };
 
-  const openQuickAdd = (tab = 'transaction') => {
-    setQuickAddInitialTab(tab);
+  const addToast = (toast: Omit<ToastItem, 'id'> | string) => {
+    if (typeof toast === 'string') {
+      showToast(toast);
+    } else {
+      showToast(toast.message, toast.type);
+    }
+  };
+
+  const openQuickAdd = (type = 'EXPENSE') => {
+    setQuickAddType(type);
     setIsQuickAddOpen(true);
   };
 
-  const setTheme = (newTheme: UserProfile['theme']) => {
-    if (!currentProfile) return;
-    const updated = storage.updateData((prev) => ({
-      ...prev,
-      profiles: prev.profiles.map((p) => (p.id === currentProfile.id ? { ...p, theme: newTheme } : p)),
-    }));
-    setData(updated);
-    showToast(`Theme switched to ${newTheme}`);
+  const closeQuickAdd = () => {
+    setIsQuickAddOpen(false);
   };
 
   const setCurrency = (newCurrency: string) => {
@@ -229,7 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       profiles: prev.profiles.map((p) => (p.id === currentProfile.id ? { ...p, currency: newCurrency } : p)),
     }));
     setData(updated);
-    showToast(`Display currency changed to ${newCurrency}`);
+    showToast(`Currency changed to ${newCurrency}`);
   };
 
   const switchProfile = (profileId: string) => {
@@ -239,7 +263,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     setData(updated);
     const p = updated.profiles.find((pr) => pr.id === profileId);
-    showToast(`Switched profile to ${p?.displayName || 'User'}`);
+    showToast(`Signed in as ${p?.displayName || 'User'}`);
   };
 
   const createProfile = (displayName: string, username: string): UserProfile => {
@@ -247,8 +271,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: 'usr_' + Date.now().toString(36),
       username: username.trim().toLowerCase(),
       displayName: displayName.trim(),
-      currency: 'INR',
-      theme: 'dark',
+      currency: 'USD',
+      theme: 'light',
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     };
@@ -259,82 +283,410 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       currentProfileId: newProfile.id,
     }));
     setData(updated);
-    showToast(`Created profile for ${displayName}`);
+    showToast(`Welcome, ${displayName}!`);
     return newProfile;
   };
 
   const logout = () => {
-    showToast('Signed out of profile', 'info');
+    const updated = storage.updateData((prev) => ({
+      ...prev,
+      currentProfileId: null,
+    }));
+    setData(updated);
+    showToast('Signed out of profile', 'INFO');
   };
 
   const loadDemoData = () => {
-    const demoData = storage.loadDemoWorkspace();
-    setData(demoData);
-    showToast('Loaded interactive sample workspace!');
+    const demo = storage.loadDemoWorkspace();
+    setData(demo);
+    showToast('Demo workspace loaded!');
   };
 
   const resetToEmptyWorkspace = () => {
     if (!currentProfile) return;
     const fresh = storage.resetToEmptyWorkspace(currentProfile);
     setData(fresh);
-    showToast('Workspace reset to empty state', 'info');
+    showToast('Workspace reset to empty', 'INFO');
   };
 
   // Filter scoped data for current active user
   const userId = currentProfile?.id || '';
   const accounts = useMemo(() => data.accounts.filter((a) => a.userId === userId), [data.accounts, userId]);
-  const incomeSources = useMemo(() => data.incomeSources.filter((i) => i.userId === userId), [data.incomeSources, userId]);
-  const transactions = useMemo(() => data.transactions.filter((t) => t.userId === userId), [data.transactions, userId]);
-  const debts = useMemo(() => data.debts.filter((d) => d.userId === userId), [data.debts, userId]);
-  const goals = useMemo(() => data.goals.filter((g) => g.userId === userId), [data.goals, userId]);
+  
+  // Format income sources consistently
+  const rawIncomeSources = useMemo(() => data.incomeSources.filter((i) => i.userId === userId), [data.incomeSources, userId]);
+  const incomeSources = useMemo(() => {
+    return rawIncomeSources.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      amount: Number(s.amount) || 0,
+      type: s.type || 'PRIMARY',
+      frequency: s.frequency || 'MONTHLY',
+      isGuaranteed: s.isGuaranteed ?? true,
+      notes: s.notes || '',
+      nextIncomeDate: s.nextIncomeDate || new Date().toISOString().slice(0, 10),
+    }));
+  }, [rawIncomeSources]);
+
+  // Format transactions consistently
+  const rawTransactions = useMemo(() => data.transactions.filter((t) => t.userId === userId), [data.transactions, userId]);
+  const transactions = useMemo(() => {
+    return rawTransactions.map((t: any) => ({
+      id: t.id,
+      amount: Number(t.amount) || 0,
+      type: t.type || 'EXPENSE',
+      category: t.category || 'General',
+      budgetCategory: t.budgetCategory || (t.type === 'INCOME' ? 'SAVINGS' : 'NEEDS'),
+      description: t.description || t.category || '',
+      date: t.date || new Date().toISOString().slice(0, 10),
+    }));
+  }, [rawTransactions]);
+
+  // Format debts consistently
+  const rawDebts = useMemo(() => data.debts.filter((d) => d.userId === userId), [data.debts, userId]);
+  const debts = useMemo(() => {
+    return rawDebts.map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      currentBalance: Number(d.currentBalance ?? d.remainingAmount) || 0,
+      remainingAmount: Number(d.remainingAmount ?? d.currentBalance) || 0,
+      interestRate: Number(d.interestRate) || 0,
+      minimumPayment: Number(d.minimumPayment) || 0,
+      category: d.category || d.type || 'CREDIT_CARD',
+      dueDateDay: Number(d.dueDateDay) || 15,
+      dueDate: d.dueDate || '',
+    }));
+  }, [rawDebts]);
+
+  // Format goals consistently
+  const rawGoals = useMemo(() => data.goals.filter((g) => g.userId === userId), [data.goals, userId]);
+  const goals = useMemo(() => {
+    return rawGoals.map((g: any) => ({
+      id: g.id,
+      name: g.name,
+      targetAmount: Number(g.targetAmount) || 0,
+      currentAmount: Number(g.currentAmount) || 0,
+      targetDate: g.targetDate || g.deadline || new Date().toISOString().slice(0, 10),
+      category: g.category || 'SAVINGS',
+      priority: g.priority || 'MEDIUM',
+    }));
+  }, [rawGoals]);
+
   const bills = useMemo(() => data.bills.filter((b) => b.userId === userId), [data.bills, userId]);
   const budgets = useMemo(() => data.budgets.filter((b) => b.userId === userId), [data.budgets, userId]);
   const investments = useMemo(() => data.investments.filter((i) => i.userId === userId), [data.investments, userId]);
 
-  // Master Brain State calculated live
-  const brainState = useMemo(() => {
-    return analyzeFinoraBrain(
-      accounts,
-      incomeSources,
-      transactions,
-      debts,
-      goals,
-      bills,
-      budgets,
-      investments,
-      currency
-    );
-  }, [accounts, incomeSources, transactions, debts, goals, bills, budgets, investments, currency]);
+  // CALCULATION ENGINES
+  // 1. Cash Flow
+  const cashFlow: CashFlowMetrics = useMemo(() => {
+    // Total income from recurring income sources (monthly equivalent)
+    const incomeSourceTotal = incomeSources.reduce((sum, s) => {
+      let monthly = s.amount;
+      if (s.frequency === 'WEEKLY') monthly = (s.amount * 52) / 12;
+      if (s.frequency === 'BI_WEEKLY' || s.frequency === 'BIWEEKLY') monthly = (s.amount * 26) / 12;
+      if (s.frequency === 'ANNUALLY' || s.frequency === 'ANNUAL') monthly = s.amount / 12;
+      if (s.frequency === 'ONE_TIME') monthly = 0;
+      return sum + monthly;
+    }, 0);
 
-  // ATOMIC DATA MUTATIONS
+    // If no recurring sources, check transactions marked as income
+    const txIncomeTotal = transactions
+      .filter((t) => t.type === 'INCOME')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalIncome = incomeSourceTotal > 0 ? incomeSourceTotal : txIncomeTotal;
+
+    // Total expenses from transactions
+    const totalExpenses = transactions
+      .filter((t) => t.type === 'EXPENSE')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const netSavings = totalIncome - totalExpenses;
+    const savingsRate = totalIncome > 0 ? Math.max(0, (netSavings / totalIncome) * 100) : 0;
+
+    return {
+      totalIncome: Math.round(totalIncome * 100) / 100,
+      totalExpenses: Math.round(totalExpenses * 100) / 100,
+      netSavings: Math.round(netSavings * 100) / 100,
+      savingsRate: Math.round(savingsRate * 10) / 10,
+    };
+  }, [incomeSources, transactions]);
+
+  // 2. 50/30/20 Budget Analysis
+  const budgetAnalysis: BudgetAnalysisMetrics = useMemo(() => {
+    const inc = cashFlow.totalIncome;
+    const needsTarget = inc * 0.5;
+    const wantsTarget = inc * 0.3;
+    const savingsTarget = inc * 0.2;
+
+    const needsActual = transactions
+      .filter((t) => t.type === 'EXPENSE' && (t.budgetCategory === 'NEEDS' || !t.budgetCategory))
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const wantsActual = transactions
+      .filter((t) => t.type === 'EXPENSE' && t.budgetCategory === 'WANTS')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const savingsActual = Math.max(0, inc - (needsActual + wantsActual));
+
+    const needsActualPercent = inc > 0 ? (needsActual / inc) * 100 : 0;
+    const wantsActualPercent = inc > 0 ? (wantsActual / inc) * 100 : 0;
+    const savingsActualPercent = inc > 0 ? (savingsActual / inc) * 100 : 0;
+
+    return {
+      needsActual: Math.round(needsActual * 100) / 100,
+      needsTarget: Math.round(needsTarget * 100) / 100,
+      needsActualPercent: Math.round(needsActualPercent * 10) / 10,
+      needsStatus: needsActualPercent > 50 ? 'OVER_BUDGET' : 'ON_TRACK',
+
+      wantsActual: Math.round(wantsActual * 100) / 100,
+      wantsTarget: Math.round(wantsTarget * 100) / 100,
+      wantsActualPercent: Math.round(wantsActualPercent * 10) / 10,
+      wantsStatus: wantsActualPercent > 30 ? 'OVER_BUDGET' : 'ON_TRACK',
+
+      savingsActual: Math.round(savingsActual * 100) / 100,
+      savingsTarget: Math.round(savingsTarget * 100) / 100,
+      savingsActualPercent: Math.round(savingsActualPercent * 10) / 10,
+      savingsStatus: savingsActualPercent < 20 ? 'UNDER_TARGET' : 'ON_TRACK',
+    };
+  }, [cashFlow, transactions]);
+
+  // 3. Emergency Fund
+  const emergencyFund: EmergencyFundMetrics = useMemo(() => {
+    const monthlyExpenses = cashFlow.totalExpenses > 0 ? cashFlow.totalExpenses : (cashFlow.totalIncome * 0.5) || 1000;
+    const targetFundAmount = monthlyExpenses * emergencyFundMonths;
+
+    // Check goals or accounts earmarked for emergency
+    const goalFund = goals
+      .filter((g) => g.category === 'EMERGENCY_FUND' || g.name.toLowerCase().includes('emergency'))
+      .reduce((sum, g) => sum + g.currentAmount, 0);
+
+    const accountFund = accounts
+      .filter((a) => a.emergencyFund)
+      .reduce((sum, a) => sum + a.balance, 0);
+
+    const currentEmergencyFund = goalFund + accountFund;
+    const monthsOfRunway = monthlyExpenses > 0 ? currentEmergencyFund / monthlyExpenses : 0;
+    const gapAmount = Math.max(0, targetFundAmount - currentEmergencyFund);
+
+    let status = 'Sufficient';
+    if (monthsOfRunway < 1) status = 'Critically Low';
+    else if (monthsOfRunway < 3) status = 'Needs Building';
+    else if (monthsOfRunway < 6) status = 'Adequate';
+    else status = 'Excellent Fortress';
+
+    return {
+      monthsOfRunway: Math.round(monthsOfRunway * 10) / 10,
+      targetFundAmount: Math.round(targetFundAmount * 100) / 100,
+      currentEmergencyFund: Math.round(currentEmergencyFund * 100) / 100,
+      monthlyExpenses: Math.round(monthlyExpenses * 100) / 100,
+      gapAmount: Math.round(gapAmount * 100) / 100,
+      status,
+    };
+  }, [cashFlow, goals, accounts, emergencyFundMonths]);
+
+  // 4. Financial Health Score
+  const healthScore: HealthScoreMetrics = useMemo(() => {
+    let score = 50;
+
+    // Positive cash flow
+    if (cashFlow.netSavings > 0) score += 15;
+    else if (cashFlow.netSavings < 0) score -= 15;
+
+    // Savings rate
+    if (cashFlow.savingsRate >= 20) score += 15;
+    else if (cashFlow.savingsRate >= 10) score += 8;
+
+    // Emergency fund
+    if (emergencyFund.monthsOfRunway >= 6) score += 15;
+    else if (emergencyFund.monthsOfRunway >= 3) score += 10;
+    else if (emergencyFund.monthsOfRunway >= 1) score += 5;
+
+    // Debt burden
+    const totalDebt = debts.reduce((s, d) => s + d.currentBalance, 0);
+    if (totalDebt === 0) score += 10;
+    else if (totalDebt < cashFlow.totalIncome * 2) score += 5;
+    else score -= 10;
+
+    // Cap between 0 and 100
+    score = Math.max(10, Math.min(100, score));
+
+    let grade = 'A';
+    let status = 'Excellent Financial Standing';
+
+    if (score >= 85) {
+      grade = 'A+';
+      status = 'Optimal Financial Health';
+    } else if (score >= 75) {
+      grade = 'A';
+      status = 'Healthy & Balanced';
+    } else if (score >= 60) {
+      grade = 'B';
+      status = 'Stable, Room to Optimize';
+    } else if (score >= 45) {
+      grade = 'C';
+      status = 'Needs Attention & Action';
+    } else {
+      grade = 'D';
+      status = 'High Financial Vulnerability';
+    }
+
+    return {
+      score,
+      grade,
+      status,
+      factors: {
+        'Cash Flow': cashFlow.netSavings > 0 ? 85 : 40,
+        'Savings Rate': Math.min(100, cashFlow.savingsRate * 4),
+        'Emergency Reserve': Math.min(100, emergencyFund.monthsOfRunway * 16.6),
+        'Debt Exposure': totalDebt === 0 ? 100 : Math.max(20, 100 - (totalDebt / (cashFlow.totalIncome || 1)) * 20),
+      },
+    };
+  }, [cashFlow, emergencyFund, debts]);
+
+  // 5. Debt Payoff Plan
+  const debtPayoffPlan: DebtPayoffPlanMetrics = useMemo(() => {
+    const totalBal = debts.reduce((s, d) => s + d.currentBalance, 0);
+    const minDue = debts.reduce((s, d) => s + d.minimumPayment, 0);
+
+    if (totalBal <= 0) {
+      return {
+        debtFreeDate: 'Debt Free Today!',
+        totalInterestPaid: 0,
+        monthsToPayoff: 0,
+      };
+    }
+
+    const monthlyPayment = Math.max(minDue, debtMonthlyBudget || minDue || 100);
+    const avgRate = debts.length > 0 ? debts.reduce((s, d) => s + d.interestRate, 0) / debts.length / 100 / 12 : 0.015;
+
+    let balance = totalBal;
+    let months = 0;
+    let totalInterest = 0;
+
+    while (balance > 0 && months < 360) {
+      months++;
+      const interest = balance * avgRate;
+      totalInterest += interest;
+      const principal = Math.min(balance, monthlyPayment - interest);
+      if (principal <= 0) {
+        // Payment doesn't cover interest
+        months = 360;
+        break;
+      }
+      balance -= principal;
+    }
+
+    const freeDate = new Date();
+    freeDate.setMonth(freeDate.getMonth() + months);
+    const debtFreeDate = freeDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+    return {
+      debtFreeDate: months >= 360 ? '30+ Years' : debtFreeDate,
+      totalInterestPaid: Math.round(totalInterest * 100) / 100,
+      monthsToPayoff: months,
+    };
+  }, [debts, debtMonthlyBudget]);
+
+  // 6. Forecast & Brain State
+  const brainState: BrainState = useMemo(() => {
+    const recommendations: any[] = [];
+
+    // Check emergency fund
+    if (emergencyFund.monthsOfRunway < 3) {
+      recommendations.push({
+        severity: 'CRITICAL',
+        category: 'Emergency Liquidity',
+        title: 'Emergency Cushion Below 3 Months',
+        message: `Your current liquid reserves cover ${emergencyFund.monthsOfRunway} months of expenses. Target at least 3-6 months (${emergencyFund.targetFundAmount}) to insulate against sudden income shocks.`,
+        fact: `Monthly burn rate is calculated at ${emergencyFund.monthlyExpenses}.`,
+        action: 'Build emergency reserve',
+      });
+    }
+
+    // Check high APR debt
+    const highInterestDebts = debts.filter((d) => d.interestRate >= 15);
+    if (highInterestDebts.length > 0) {
+      recommendations.push({
+        severity: 'WARNING',
+        category: 'High-Interest Debt',
+        title: `${highInterestDebts.length} High-Interest Liabilities Detected`,
+        message: `You have debt accounts carrying APRs above 15.0%. Utilize the Avalanche repayment engine to minimize interest drain.`,
+        fact: `Total high-APR balance: ${highInterestDebts.reduce((s, d) => s + d.currentBalance, 0)}.`,
+        action: 'Accelerate debt payoff',
+      });
+    }
+
+    // Check budget wants
+    if (budgetAnalysis.wantsActualPercent > 35) {
+      recommendations.push({
+        severity: 'ATTENTION',
+        category: 'Discretionary Outflow',
+        title: 'Discretionary Spending Exceeds 35%',
+        message: `Wants currently consume ${budgetAnalysis.wantsActualPercent}% of your active income (50/30/20 target is 30%).`,
+        fact: `Wants spending: ${budgetAnalysis.wantsActual}.`,
+        action: 'Review non-essential subscriptions and dining out',
+      });
+    }
+
+    // Default positive signal if empty or healthy
+    if (recommendations.length === 0) {
+      recommendations.push({
+        severity: 'HEALTHY',
+        category: 'Financial Telemetry',
+        title: 'System Operating Within Healthy Parameters',
+        message: 'Your cash flow surplus, emergency reserves, and budget ratios are in solid alignment.',
+        fact: `Current savings rate is ${cashFlow.savingsRate}%.`,
+        action: 'Continue disciplined wealth building',
+      });
+    }
+
+    const snapshot = createFinancialSnapshot(accounts, incomeSources as any, transactions as any, debts as any, goals as any, bills, budgets, investments);
+    const safeToSpend = calculateSafeToSpend(snapshot);
+    const monthlyPlan = createMonthlyPlan(snapshot);
+    const health = calculateHealthScore(snapshot);
+    const forecast = forecastCashFlow(snapshot);
+
+    return {
+      snapshot,
+      safeToSpend,
+      monthlyPlan,
+      health,
+      recommendations,
+      forecast,
+    };
+  }, [accounts, incomeSources, transactions, debts, goals, bills, budgets, investments, emergencyFund, budgetAnalysis, cashFlow]);
+
+  const forecast = brainState.forecast;
+
+  // CRUD Implementations
   const addAccount = (name: string, type: AccountType, openingBalance: number, emergencyFund: boolean): Account => {
-    const newAcc: Account = {
+    const nowStr = new Date().toISOString();
+    const newAccount: Account = {
       id: 'acc_' + Date.now().toString(36),
       userId,
-      name: name.trim(),
+      name,
       type,
       balance: openingBalance,
       currency,
       emergencyFund,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowStr,
+      updatedAt: nowStr,
     };
 
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: [...prev.accounts, newAcc],
+      accounts: [...prev.accounts, newAccount],
     }));
     setData(updated);
-    showToast(`Account "${name}" added`);
-    return newAcc;
+    showToast(`Account "${name}" created`);
+    return newAccount;
   };
 
   const updateAccount = (id: string, name: string, type: AccountType, emergencyFund: boolean) => {
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: prev.accounts.map((a) =>
-        a.id === id ? { ...a, name: name.trim(), type, emergencyFund, updatedAt: new Date().toISOString() } : a
-      ),
+      accounts: prev.accounts.map((a) => (a.id === id ? { ...a, name, type, emergencyFund, updatedAt: new Date().toISOString() } : a)),
     }));
     setData(updated);
     showToast('Account updated');
@@ -346,222 +698,151 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       accounts: prev.accounts.filter((a) => a.id !== id),
     }));
     setData(updated);
-    showToast('Account deleted', 'info');
+    showToast('Account removed', 'INFO');
   };
 
-  const addIncomeSource = (
-    name: string,
-    amount: number,
-    frequency: IncomeSource['frequency'],
-    nextIncomeDate: string,
-    accountId: string,
-    notes?: string,
-    recordToday?: boolean
-  ) => {
-    const sourceId = 'inc_' + Date.now().toString(36);
+  const addIncomeSource = (dataOrName: any, ...rest: any[]) => {
     const nowStr = new Date().toISOString();
-    const source: IncomeSource = {
-      id: sourceId,
-      userId,
-      name: name.trim(),
-      amount,
-      frequency,
-      nextIncomeDate,
-      accountId,
-      active: true,
-      notes,
-      createdAt: nowStr,
-      updatedAt: nowStr,
-    };
+    let newSource: any;
 
-    let nextDate = nextIncomeDate;
-    const newTxs: TransactionRecord[] = [];
-    let updatedAccounts = [...data.accounts];
-
-    if (recordToday) {
-      newTxs.push({
-        id: 'tx_' + Date.now().toString(36),
+    if (typeof dataOrName === 'object' && dataOrName !== null) {
+      newSource = {
+        id: 'inc_' + Date.now().toString(36),
         userId,
-        amount,
-        type: 'INCOME',
-        category: 'Income',
-        accountId,
-        date: new Date().toISOString().split('T')[0],
-        description: name.trim(),
-        notes: 'Recorded while creating recurring income',
-        referenceId: sourceId,
+        name: dataOrName.name || 'Income Stream',
+        amount: Number(dataOrName.amount) || 0,
+        type: dataOrName.type || 'PRIMARY',
+        frequency: dataOrName.frequency || 'MONTHLY',
+        isGuaranteed: dataOrName.isGuaranteed ?? true,
+        notes: dataOrName.notes || '',
+        active: true,
+        nextIncomeDate: dataOrName.nextIncomeDate || new Date().toISOString().slice(0, 10),
         createdAt: nowStr,
         updatedAt: nowStr,
-      });
+      };
+    } else {
+      const name = dataOrName;
+      const amount = rest[0];
+      const frequency = rest[1] || 'MONTHLY';
+      const nextIncomeDate = rest[2] || new Date().toISOString().slice(0, 10);
+      const accountId = rest[3] || '';
+      const notes = rest[4] || '';
 
-      // Update account balance atomically
-      updatedAccounts = updatedAccounts.map((a) =>
-        a.id === accountId ? { ...a, balance: a.balance + amount, updatedAt: nowStr } : a
-      );
-
-      // Advance next income date
-      while (nextDate <= new Date().toISOString().split('T')[0]) {
-        nextDate = getNextDateAfter(nextDate, frequency);
-      }
-      source.nextIncomeDate = nextDate;
+      newSource = {
+        id: 'inc_' + Date.now().toString(36),
+        userId,
+        name,
+        amount: Number(amount) || 0,
+        type: 'PRIMARY',
+        frequency,
+        isGuaranteed: true,
+        nextIncomeDate,
+        accountId,
+        active: true,
+        notes,
+        createdAt: nowStr,
+        updatedAt: nowStr,
+      };
     }
 
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: updatedAccounts,
-      incomeSources: [...prev.incomeSources, source],
-      transactions: [...prev.transactions, ...newTxs],
+      incomeSources: [...prev.incomeSources, newSource],
     }));
     setData(updated);
-    showToast(`Income source "${name}" added`);
+    showToast(`Income source "${newSource.name}" added`);
   };
 
-  const recordIncomeReceipt = (sourceId: string, receivedDate?: string) => {
-    const source = data.incomeSources.find((s) => s.id === sourceId);
-    if (!source) return;
-
-    const date = receivedDate || new Date().toISOString().split('T')[0];
-    const nowStr = new Date().toISOString();
-
-    const tx: TransactionRecord = {
-      id: 'tx_' + Date.now().toString(36),
-      userId,
-      amount: source.amount,
-      type: 'INCOME',
-      category: 'Income',
-      accountId: source.accountId,
-      date,
-      description: source.name,
-      notes: 'Recorded from recurring income receipt',
-      referenceId: source.id,
-      createdAt: nowStr,
-      updatedAt: nowStr,
-    };
-
-    let next = source.nextIncomeDate;
-    while (next <= date) {
-      next = getNextDateAfter(next, source.frequency);
-    }
-
+  const updateIncomeSource = (id: string, updates: any) => {
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: prev.accounts.map((a) =>
-        a.id === source.accountId ? { ...a, balance: a.balance + source.amount, updatedAt: nowStr } : a
-      ),
-      incomeSources: prev.incomeSources.map((s) =>
-        s.id === sourceId ? { ...s, nextIncomeDate: next, updatedAt: nowStr } : s
-      ),
-      transactions: [...prev.transactions, tx],
+      incomeSources: prev.incomeSources.map((s) => (s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s)),
     }));
     setData(updated);
-    showToast(`Recorded income of ${source.name}`);
+    showToast('Income source updated');
   };
 
   const deleteIncomeSource = (id: string) => {
     const updated = storage.updateData((prev) => ({
       ...prev,
-      incomeSources: prev.incomeSources.filter((i) => i.id !== id),
+      incomeSources: prev.incomeSources.filter((s) => s.id !== id),
     }));
     setData(updated);
-    showToast('Income source deleted', 'info');
+    showToast('Income source deleted', 'INFO');
   };
 
-  const addTransaction = (
-    amount: number,
-    type: TransactionRecord['type'],
-    category: string,
-    accountId: string,
-    description: string,
-    relatedAccountId?: string,
-    date?: string,
-    notes?: string
-  ) => {
+  const addTransaction = (dataOrAmount: any, ...rest: any[]) => {
     const nowStr = new Date().toISOString();
-    const tx: TransactionRecord = {
-      id: 'tx_' + Date.now().toString(36),
-      userId,
-      amount,
-      type,
-      category: category || 'General',
-      accountId,
-      relatedAccountId,
-      date: date || new Date().toISOString().split('T')[0],
-      description: description.trim(),
-      notes,
-      createdAt: nowStr,
-      updatedAt: nowStr,
-    };
+    let newTx: any;
 
-    // Atomically adjust account balances
-    let updatedAccounts = [...data.accounts];
-    if (type === 'INCOME') {
-      updatedAccounts = updatedAccounts.map((a) =>
-        a.id === accountId ? { ...a, balance: a.balance + amount, updatedAt: nowStr } : a
-      );
-    } else if (type === 'TRANSFER') {
-      if (!relatedAccountId) throw new Error('Destination account required for transfer.');
-      updatedAccounts = updatedAccounts.map((a) => {
-        if (a.id === accountId) return { ...a, balance: a.balance - amount, updatedAt: nowStr };
-        if (a.id === relatedAccountId) return { ...a, balance: a.balance + amount, updatedAt: nowStr };
-        return a;
-      });
-    } else if (type === 'GOAL_CONTRIBUTION') {
-      // Goal earmarking does not destroy account asset
+    if (typeof dataOrAmount === 'object' && dataOrAmount !== null) {
+      newTx = {
+        id: 'tx_' + Date.now().toString(36),
+        userId,
+        amount: Number(dataOrAmount.amount) || 0,
+        type: dataOrAmount.type || 'EXPENSE',
+        category: dataOrAmount.category || 'General',
+        budgetCategory: dataOrAmount.budgetCategory || 'NEEDS',
+        description: dataOrAmount.description || dataOrAmount.category || '',
+        date: dataOrAmount.date || new Date().toISOString().slice(0, 10),
+        notes: dataOrAmount.notes || '',
+        createdAt: nowStr,
+        updatedAt: nowStr,
+      };
     } else {
-      // EXPENSE, DEBT_PAYMENT, EMI_PAYMENT, INVESTMENT_CONTRIBUTION
-      updatedAccounts = updatedAccounts.map((a) =>
-        a.id === accountId ? { ...a, balance: a.balance - amount, updatedAt: nowStr } : a
-      );
+      const amount = Number(dataOrAmount) || 0;
+      const type = rest[0] || 'EXPENSE';
+      const category = rest[1] || 'General';
+      const accountId = rest[2] || '';
+      const description = rest[3] || '';
+      const date = rest[5] || new Date().toISOString().slice(0, 10);
+
+      newTx = {
+        id: 'tx_' + Date.now().toString(36),
+        userId,
+        amount,
+        type,
+        category,
+        accountId,
+        budgetCategory: type === 'INCOME' ? 'SAVINGS' : 'NEEDS',
+        description: description || category,
+        date,
+        createdAt: nowStr,
+        updatedAt: nowStr,
+      };
     }
 
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: updatedAccounts,
-      transactions: [tx, ...prev.transactions],
+      transactions: [newTx, ...prev.transactions],
     }));
     setData(updated);
-    showToast(`Recorded ${description}`);
+    showToast(`Transaction recorded: ${newTx.category}`);
   };
 
   const deleteTransaction = (id: string) => {
-    const tx = data.transactions.find((t) => t.id === id);
-    if (!tx) return;
-
-    // Reverse balance effect
-    let updatedAccounts = [...data.accounts];
-    const nowStr = new Date().toISOString();
-
-    if (tx.type === 'INCOME') {
-      updatedAccounts = updatedAccounts.map((a) =>
-        a.id === tx.accountId ? { ...a, balance: a.balance - tx.amount, updatedAt: nowStr } : a
-      );
-    } else if (tx.type === 'TRANSFER' && tx.relatedAccountId) {
-      updatedAccounts = updatedAccounts.map((a) => {
-        if (a.id === tx.accountId) return { ...a, balance: a.balance + tx.amount, updatedAt: nowStr };
-        if (a.id === tx.relatedAccountId) return { ...a, balance: a.balance - tx.amount, updatedAt: nowStr };
-        return a;
-      });
-    } else if (tx.type !== 'GOAL_CONTRIBUTION') {
-      updatedAccounts = updatedAccounts.map((a) =>
-        a.id === tx.accountId ? { ...a, balance: a.balance + tx.amount, updatedAt: nowStr } : a
-      );
-    }
-
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: updatedAccounts,
       transactions: prev.transactions.filter((t) => t.id !== id),
     }));
     setData(updated);
-    showToast('Transaction removed', 'info');
+    showToast('Transaction removed', 'INFO');
   };
 
-  const addDebt = (debt: Omit<Debt, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+  const addDebt = (dataOrDebt: any) => {
     const nowStr = new Date().toISOString();
-    const newDebt: Debt = {
-      ...debt,
+    const newDebt: any = {
       id: 'debt_' + Date.now().toString(36),
       userId,
+      name: dataOrDebt.name || 'Liability',
+      currentBalance: Number(dataOrDebt.currentBalance ?? dataOrDebt.remainingAmount) || 0,
+      remainingAmount: Number(dataOrDebt.remainingAmount ?? dataOrDebt.currentBalance) || 0,
+      originalAmount: Number(dataOrDebt.originalAmount ?? dataOrDebt.currentBalance) || 0,
+      interestRate: Number(dataOrDebt.interestRate) || 0,
+      minimumPayment: Number(dataOrDebt.minimumPayment) || 0,
+      category: dataOrDebt.category || dataOrDebt.type || 'CREDIT_CARD',
+      type: dataOrDebt.type || 'CREDIT_CARD',
+      dueDateDay: Number(dataOrDebt.dueDateDay) || 15,
       createdAt: nowStr,
       updatedAt: nowStr,
     };
@@ -571,47 +852,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       debts: [...prev.debts, newDebt],
     }));
     setData(updated);
-    showToast(`Added liability "${debt.name}"`);
+    showToast(`Debt liability "${newDebt.name}" added`);
   };
 
-  const recordDebtPayment = (debtId: string, accountId: string, amount: number) => {
-    const debt = data.debts.find((d) => d.id === debtId);
-    if (!debt) return;
-
-    const nowStr = new Date().toISOString();
-    const tx: TransactionRecord = {
-      id: 'tx_' + Date.now().toString(36),
-      userId,
-      amount,
-      type: 'DEBT_PAYMENT',
-      category: 'Debt',
-      accountId,
-      date: new Date().toISOString().split('T')[0],
-      description: `Payment to ${debt.name}`,
-      notes: 'Recorded through Debt Center',
-      referenceId: debtId,
-      createdAt: nowStr,
-      updatedAt: nowStr,
-    };
-
+  const updateDebt = (id: string, updates: any) => {
     const updated = storage.updateData((prev) => ({
       ...prev,
-      accounts: prev.accounts.map((a) =>
-        a.id === accountId ? { ...a, balance: a.balance - amount, updatedAt: nowStr } : a
-      ),
-      debts: prev.debts.map((d) =>
-        d.id === debtId
-          ? {
-              ...d,
-              remainingAmount: Math.max(0, d.remainingAmount - amount),
-              updatedAt: nowStr,
-            }
-          : d
-      ),
-      transactions: [tx, ...prev.transactions],
+      debts: prev.debts.map((d) => (d.id === id ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d)),
     }));
     setData(updated);
-    showToast(`Payment of ${amount} applied to ${debt.name}`);
+    showToast('Debt liability updated');
   };
 
   const deleteDebt = (id: string) => {
@@ -620,15 +870,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       debts: prev.debts.filter((d) => d.id !== id),
     }));
     setData(updated);
-    showToast('Debt removed', 'info');
+    showToast('Debt liability removed', 'INFO');
   };
 
-  const addGoal = (goal: Omit<Goal, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
+  const addGoal = (dataOrGoal: any) => {
     const nowStr = new Date().toISOString();
-    const newGoal: Goal = {
-      ...goal,
+    const newGoal: any = {
       id: 'goal_' + Date.now().toString(36),
       userId,
+      name: dataOrGoal.name || 'Savings Goal',
+      targetAmount: Number(dataOrGoal.targetAmount) || 0,
+      currentAmount: Number(dataOrGoal.currentAmount) || 0,
+      monthlyContribution: Number(dataOrGoal.monthlyContribution) || 0,
+      targetDate: dataOrGoal.targetDate || dataOrGoal.deadline || new Date().toISOString().slice(0, 10),
+      category: dataOrGoal.category || 'SAVINGS',
+      priority: dataOrGoal.priority || 'MEDIUM',
       createdAt: nowStr,
       updatedAt: nowStr,
     };
@@ -638,44 +894,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       goals: [...prev.goals, newGoal],
     }));
     setData(updated);
-    showToast(`Goal "${goal.name}" created`);
+    showToast(`Goal "${newGoal.name}" created`);
   };
 
-  const contributeToGoal = (goalId: string, accountId: string, amount: number) => {
-    const goal = data.goals.find((g) => g.id === goalId);
-    if (!goal) return;
-
-    const nowStr = new Date().toISOString();
-    const tx: TransactionRecord = {
-      id: 'tx_' + Date.now().toString(36),
-      userId,
-      amount,
-      type: 'GOAL_CONTRIBUTION',
-      category: 'Goals',
-      accountId,
-      date: new Date().toISOString().split('T')[0],
-      description: `${goal.name} contribution`,
-      notes: 'Earmarked reserve for goal',
-      referenceId: goalId,
-      createdAt: nowStr,
-      updatedAt: nowStr,
-    };
-
+  const updateGoal = (id: string, updates: any) => {
     const updated = storage.updateData((prev) => ({
       ...prev,
-      goals: prev.goals.map((g) =>
-        g.id === goalId
-          ? {
-              ...g,
-              currentAmount: Math.min(g.targetAmount, g.currentAmount + amount),
-              updatedAt: nowStr,
-            }
-          : g
-      ),
-      transactions: [tx, ...prev.transactions],
+      goals: prev.goals.map((g) => (g.id === id ? { ...g, ...updates, updatedAt: new Date().toISOString() } : g)),
     }));
     setData(updated);
-    showToast(`Contribution added to ${goal.name}`);
+    showToast('Goal updated');
   };
 
   const deleteGoal = (id: string) => {
@@ -684,7 +912,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       goals: prev.goals.filter((g) => g.id !== id),
     }));
     setData(updated);
-    showToast('Goal removed', 'info');
+    showToast('Goal removed', 'INFO');
   };
 
   const addBill = (bill: Omit<Bill, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => {
@@ -728,7 +956,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       bills: prev.bills.filter((b) => b.id !== id),
     }));
     setData(updated);
-    showToast('Bill removed', 'info');
+    showToast('Bill removed', 'INFO');
   };
 
   const addOrUpdateBudget = (category: string, limitAmount: number, monthKey?: string) => {
@@ -832,7 +1060,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       messages: prev.messages.filter((m) => m.conversationId !== id),
     }));
     setData(updated);
-    showToast('Conversation deleted', 'info');
+    showToast('Conversation deleted', 'INFO');
   };
 
   const updateAIMemory = (id: string, value: string) => {
@@ -852,7 +1080,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       aiMemory: prev.aiMemory.filter((m) => m.id !== id),
     }));
     setData(updated);
-    showToast('Memory forgotten', 'info');
+    showToast('Memory forgotten', 'INFO');
   };
 
   const clearAIMemory = () => {
@@ -861,7 +1089,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       aiMemory: prev.aiMemory.filter((m) => m.userId !== userId),
     }));
     setData(updated);
-    showToast('All AI memories cleared', 'info');
+    showToast('All AI memories cleared', 'INFO');
   };
 
   const updateAISettings = (settings: Partial<AISettings>) => {
@@ -882,26 +1110,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setData(updated);
   };
 
+  const setSupabaseConfig = updateSupabaseConfig;
+
   const syncToSupabase = async (): Promise<boolean> => {
     const config = data.supabaseConfig;
     if (!config.url || !config.anonKey) {
-      showToast('Please configure Supabase URL and Key in Settings', 'warning');
+      showToast('Please configure Supabase URL and Key in Settings', 'WARNING');
       return false;
     }
 
     const test = await testSupabaseConnection(config.url, config.anonKey);
     if (!test.success) {
-      showToast(test.message, 'error');
+      showToast(test.message, 'ERROR');
       return false;
     }
 
     const res = await pushDataToSupabase(config.url, config.anonKey, data, userId);
     if (res.success) {
       updateSupabaseConfig({ connected: true, lastSyncedAt: new Date().toISOString() });
-      showToast('Synced with Supabase Cloud!', 'success');
+      showToast('Synced with Supabase Cloud!', 'SUCCESS');
       return true;
     } else {
-      showToast(res.message, 'error');
+      showToast(res.message, 'ERROR');
+      return false;
+    }
+  };
+
+  const loadFromSupabase = async (): Promise<boolean> => {
+    const config = data.supabaseConfig;
+    if (!config.url || !config.anonKey) {
+      showToast('Please configure Supabase credentials', 'WARNING');
+      return false;
+    }
+
+    const res = await pullDataFromSupabase(config.url, config.anonKey, userId);
+    if (res.success && res.data) {
+      showToast('Data loaded from Supabase!', 'SUCCESS');
+      return true;
+    } else {
+      showToast(res.message || 'Failed to pull data', 'ERROR');
       return false;
     }
   };
@@ -914,9 +1161,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const ok = storage.importBackupJson(json);
     if (ok) {
       setData(storage.getData());
-      showToast('Backup restored successfully!', 'success');
+      showToast('Backup restored successfully!', 'SUCCESS');
     } else {
-      showToast('Failed to parse backup file.', 'error');
+      showToast('Failed to parse backup file.', 'ERROR');
     }
     return ok;
   };
@@ -926,8 +1173,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         page,
         setPage,
-        theme,
-        setTheme,
         currency,
         setCurrency,
         isMobileDrawerOpen,
@@ -936,11 +1181,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsSidebarCollapsed,
         isQuickAddOpen,
         setIsQuickAddOpen,
-        quickAddInitialTab,
+        quickAddType,
         openQuickAdd,
+        closeQuickAdd,
         isCommandPaletteOpen,
         setIsCommandPaletteOpen,
         toasts,
+        addToast,
         showToast,
 
         profiles: data.profiles,
@@ -960,6 +1207,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         budgets,
         investments,
 
+        cashFlow,
+        healthScore,
+        emergencyFund,
+        budgetAnalysis,
+        debtPayoffPlan,
+        debtStrategy,
+        setDebtStrategy,
+        debtMonthlyBudget,
+        setDebtMonthlyBudget,
+        emergencyFundMonths,
+        setEmergencyFundMonths,
+        forecast,
         brainState,
 
         addAccount,
@@ -967,18 +1226,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteAccount,
 
         addIncomeSource,
-        recordIncomeReceipt,
+        updateIncomeSource,
         deleteIncomeSource,
 
         addTransaction,
         deleteTransaction,
 
         addDebt,
-        recordDebtPayment,
+        updateDebt,
         deleteDebt,
 
         addGoal,
-        contributeToGoal,
+        updateGoal,
         deleteGoal,
 
         addBill,
@@ -1001,8 +1260,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateAISettings,
 
         supabaseConfig: data.supabaseConfig,
+        setSupabaseConfig,
         updateSupabaseConfig,
         syncToSupabase,
+        loadFromSupabase,
 
         exportBackup,
         importBackup,
