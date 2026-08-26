@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
@@ -6,6 +6,7 @@ import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { QuickAddModal } from './components/layout/QuickAddModal';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { ToastContainer } from './components/layout/Toast';
+import { LoadingView } from './components/layout/LoadingView';
 
 // Auth Screen
 import { AuthView } from './components/pages/AuthView';
@@ -24,6 +25,12 @@ import { SettingsPage } from './components/pages/SettingsPage';
 
 const AppContent: React.FC = () => {
   const { currentProfile, page } = useApp();
+  const [isInitialBootLoading, setIsInitialBootLoading] = useState(true);
+
+  // Show the authentic JavaFX LoadingView on boot
+  if (isInitialBootLoading) {
+    return <LoadingView onComplete={() => setIsInitialBootLoading(false)} />;
+  }
 
   // If not signed in, show Auth / Sign In screen
   if (!currentProfile) {
@@ -70,7 +77,7 @@ const AppContent: React.FC = () => {
       {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
+        <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
           {renderActivePage()}
         </main>
       </div>
