@@ -35,9 +35,13 @@ export interface StorageData {
   supabaseConfig: SupabaseConfig;
 }
 
+// Single Centralized Supabase Database
+export const CENTRAL_SUPABASE_URL = 'https://lymvbkjlqmuftzagzxol.supabase.co';
+export const CENTRAL_SUPABASE_KEY = 'sb_publishable_2aQKNtANowbPl-nUvcXAHg_NHZHs2F3';
+
 export const DEFAULT_SUPABASE_CONFIG: SupabaseConfig = {
-  url: import.meta.env.VITE_SUPABASE_URL || 'https://lymvbkjlqmuftzagzxol.supabase.co',
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2aQKNtANowbPl-nUvcXAHg_NHZHs2F3',
+  url: CENTRAL_SUPABASE_URL,
+  anonKey: CENTRAL_SUPABASE_KEY,
   connected: true,
   autoSync: true,
 };
@@ -74,10 +78,7 @@ export class StorageService {
         const parsed = JSON.parse(raw);
         return {
           ...parsed,
-          supabaseConfig: {
-            ...DEFAULT_SUPABASE_CONFIG,
-            ...(parsed.supabaseConfig || {}),
-          },
+          supabaseConfig: DEFAULT_SUPABASE_CONFIG,
           aiSettings: parsed.aiSettings || DEFAULT_AI_SETTINGS,
         };
       }
@@ -126,6 +127,33 @@ export class StorageService {
     return { ...this.data };
   }
 
+  public resetToEmptyWorkspace(profile: UserProfile): StorageData {
+    const emptyData: StorageData = {
+      profiles: [profile],
+      currentProfileId: profile.id,
+      accounts: [],
+      incomeSources: [],
+      transactions: [],
+      debts: [],
+      goals: [],
+      bills: [],
+      budgets: [],
+      investments: [],
+      conversations: [],
+      messages: [],
+      aiMemory: [],
+      aiSettings: DEFAULT_AI_SETTINGS,
+      supabaseConfig: DEFAULT_SUPABASE_CONFIG,
+    };
+    this.saveToStorage(emptyData);
+    this.data = emptyData;
+    return emptyData;
+  }
+
+  public loadDemoWorkspace(): StorageData {
+    return this.getData();
+  }
+
   public exportBackupJson(): string {
     return JSON.stringify(this.data, null, 2);
   }
@@ -138,7 +166,7 @@ export class StorageService {
       }
       this.data = {
         ...parsed,
-        supabaseConfig: parsed.supabaseConfig || DEFAULT_SUPABASE_CONFIG,
+        supabaseConfig: DEFAULT_SUPABASE_CONFIG,
       };
       this.saveToStorage(this.data);
       return true;
