@@ -68,7 +68,7 @@ export async function pushDataToSupabase(
     const userBudgets = data.budgets.filter((b) => b.userId === userId);
     const userInvestments = data.investments.filter((i) => i.userId === userId);
 
-    const promises: Promise<any>[] = [];
+    const promises: PromiseLike<any>[] = [];
 
     if (userAccounts.length > 0) {
       promises.push(
