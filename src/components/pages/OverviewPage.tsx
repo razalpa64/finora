@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
+  Zap,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatCurrency } from '../../services/currency';
@@ -43,7 +44,7 @@ export const OverviewPage: React.FC = () => {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const displayName = currentProfile?.displayName || 'User';
+  const displayName = currentProfile?.displayName || 'Alex Morgan';
 
   const hasAccount = accounts.length > 0;
   const hasIncome = incomeSources.length > 0;
@@ -54,7 +55,6 @@ export const OverviewPage: React.FC = () => {
 
   // Safe to spend metrics
   const safeToday = brainState.safeToSpend.today;
-  const safeExplanation = brainState.safeToSpend.explanation;
   const remainingDays = brainState.safeToSpend.remainingDays;
 
   // Next due bill
@@ -68,29 +68,29 @@ export const OverviewPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      {/* Heading */}
+      {/* Heading Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e7eb] pb-4">
         <div>
-          <div className="text-[10px] font-extrabold text-[#5a42e8] uppercase tracking-wider">
+          <div className="text-[10px] font-black text-[#5a42e8] uppercase tracking-widest">
             FINANCIAL COMMAND CENTER
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight">
             {greeting}, {displayName}
           </h1>
           <p className="text-xs text-[#6b7280] mt-0.5">
-            Calculated only from the records in your workspace.
+            Calculated only from the verified records in your workspace.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]">
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]">
             <span className="w-2 h-2 rounded-full bg-[#10b981]" />
-            CLOUD WORKSPACE
+            CLOUD WORKSPACE ACTIVE
           </span>
         </div>
       </div>
 
-      {/* 3-Step Guided Setup Card (Faithful to JavaFX setupGuideCard) */}
+      {/* 3-Step Guided Setup Card (if new) */}
       {showSetupGuide && (
         <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
@@ -120,7 +120,7 @@ export const OverviewPage: React.FC = () => {
 
           <div className="space-y-2.5">
             {/* Step 1 */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -137,7 +137,7 @@ export const OverviewPage: React.FC = () => {
               <button
                 onClick={() => setPage('settings')}
                 disabled={hasAccount}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   hasAccount
                     ? 'bg-[#f3f4f6] text-[#9ca3af] cursor-default'
                     : 'bg-white border border-[#d1d5db] text-[#111827] hover:bg-[#f9fafb]'
@@ -148,7 +148,7 @@ export const OverviewPage: React.FC = () => {
             </div>
 
             {/* Step 2 */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -165,7 +165,7 @@ export const OverviewPage: React.FC = () => {
               <button
                 onClick={() => setPage('income')}
                 disabled={hasIncome}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   hasIncome
                     ? 'bg-[#f3f4f6] text-[#9ca3af] cursor-default'
                     : 'bg-white border border-[#d1d5db] text-[#111827] hover:bg-[#f9fafb]'
@@ -176,7 +176,7 @@ export const OverviewPage: React.FC = () => {
             </div>
 
             {/* Step 3 */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -193,7 +193,7 @@ export const OverviewPage: React.FC = () => {
               <button
                 onClick={() => openQuickAdd('EXPENSE')}
                 disabled={hasActivity}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
                   hasActivity
                     ? 'bg-[#f3f4f6] text-[#9ca3af] cursor-default'
                     : 'bg-white border border-[#d1d5db] text-[#111827] hover:bg-[#f9fafb]'
@@ -213,7 +213,7 @@ export const OverviewPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-4 border-b border-[#f3f4f6] pb-3">
               <div>
-                <div className="text-[10px] font-extrabold text-[#5a42e8] uppercase tracking-wider">
+                <div className="text-[10px] font-black text-[#5a42e8] uppercase tracking-widest">
                   FINANCIAL HEALTH
                 </div>
                 <h3 className="text-base font-extrabold text-[#111827]">
@@ -233,18 +233,45 @@ export const OverviewPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-4xl font-extrabold text-[#111827] tracking-tight">
-                {healthScore.score}
-              </span>
-              <span className="text-sm font-bold text-[#6b7280]">/ 100</span>
+            {/* Radial Ring Gauge */}
+            <div className="flex items-center justify-center my-4">
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="transparent"
+                    stroke="#f1f5f9"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="transparent"
+                    stroke="#5a42e8"
+                    strokeWidth="8"
+                    strokeDasharray={251.2}
+                    strokeDashoffset={251.2 - (251.2 * healthScore.score) / 100}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-3xl font-black text-[#111827] tracking-tight">
+                    {healthScore.score}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#64748b]">/ 100</span>
+                </div>
+              </div>
             </div>
 
             {/* Net Worth mini bar */}
-            <div className="mt-5 p-3 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] space-y-1 text-xs">
+            <div className="mt-4 p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] space-y-1.5 text-xs">
               <div className="flex justify-between font-semibold">
-                <span className="text-[#64748b]">Total Net Worth:</span>
-                <span className={`font-extrabold ${netWorth >= 0 ? 'text-[#059669]' : 'text-[#dc2626]'}`}>
+                <span className="text-[#64748b] uppercase text-[10px] font-bold">Live Net Worth:</span>
+                <span className={`font-black text-sm ${netWorth >= 0 ? 'text-[#059669]' : 'text-[#dc2626]'}`}>
                   {formatCurrency(netWorth, currency)}
                 </span>
               </div>
@@ -260,7 +287,7 @@ export const OverviewPage: React.FC = () => {
                 <div key={k} className="text-xs">
                   <div className="flex justify-between font-semibold text-[#374151] mb-1">
                     <span>{k}</span>
-                    <span>{v}/100</span>
+                    <span className="font-bold">{v}/100</span>
                   </div>
                   <div className="h-1.5 w-full bg-[#f3f4f6] rounded-full overflow-hidden">
                     <div
@@ -274,7 +301,7 @@ export const OverviewPage: React.FC = () => {
           </div>
 
           <div className="pt-4 mt-4 border-t border-[#f3f4f6] text-[10px] text-[#6b7280] italic">
-            Calculated deterministically from cash flow, emergency reserve & debt exposure.
+            Updates after every recorded balance or liability change.
           </div>
         </div>
 
@@ -284,7 +311,7 @@ export const OverviewPage: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Monthly Income */}
             <div className="bg-white border border-[#e5e7eb] rounded-xl p-3.5 shadow-xs">
-              <div className="text-[10px] font-extrabold text-[#6b7280] uppercase tracking-wider">
+              <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-wider">
                 MONTHLY INCOME
               </div>
               <div className="mt-2 text-lg sm:text-xl font-black text-[#111827]">
@@ -297,7 +324,7 @@ export const OverviewPage: React.FC = () => {
 
             {/* Total Outflow */}
             <div className="bg-white border border-[#e5e7eb] rounded-xl p-3.5 shadow-xs">
-              <div className="text-[10px] font-extrabold text-[#6b7280] uppercase tracking-wider">
+              <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-wider">
                 TOTAL OUTFLOW
               </div>
               <div className="mt-2 text-lg sm:text-xl font-black text-[#111827]">
@@ -310,7 +337,7 @@ export const OverviewPage: React.FC = () => {
 
             {/* Monthly Surplus */}
             <div className="bg-white border border-[#e5e7eb] rounded-xl p-3.5 shadow-xs">
-              <div className="text-[10px] font-extrabold text-[#6b7280] uppercase tracking-wider">
+              <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-wider">
                 MONTHLY SURPLUS
               </div>
               <div
@@ -327,7 +354,7 @@ export const OverviewPage: React.FC = () => {
 
             {/* Active Debt */}
             <div className="bg-white border border-[#e5e7eb] rounded-xl p-3.5 shadow-xs">
-              <div className="text-[10px] font-extrabold text-[#6b7280] uppercase tracking-wider">
+              <div className="text-[10px] font-black text-[#6b7280] uppercase tracking-wider">
                 ACTIVE DEBT
               </div>
               <div className="mt-2 text-lg sm:text-xl font-black text-[#dc2626]">
@@ -344,11 +371,11 @@ export const OverviewPage: React.FC = () => {
             <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-[#5a42e8]" />
-                <h3 className="text-xs font-bold text-[#111827] uppercase tracking-wider">
+                <h3 className="text-xs font-extrabold text-[#111827] uppercase tracking-wider">
                   Today's Financial Snapshot
                 </h3>
               </div>
-              <span className="text-[10px] text-[#6b7280]">
+              <span className="text-[10px] font-semibold text-[#6b7280]">
                 {remainingDays} days remaining in month
               </span>
             </div>
@@ -356,10 +383,10 @@ export const OverviewPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               {/* Safe to Spend Today */}
               <div className="p-3.5 rounded-xl bg-[#f3f1fc] border border-[#e9e5f8]">
-                <div className="text-[10px] font-bold text-[#5a42e8] uppercase tracking-wider">
+                <div className="text-[10px] font-extrabold text-[#5a42e8] uppercase tracking-wider">
                   Safe to Spend Today
                 </div>
-                <div className="text-xl font-black text-[#5a42e8] mt-1">
+                <div className="text-2xl font-black text-[#5a42e8] mt-1">
                   {formatCurrency(safeToday, currency)}
                 </div>
                 <div className="text-[10px] text-[#6b7280] mt-1 leading-tight">
@@ -369,7 +396,7 @@ export const OverviewPage: React.FC = () => {
 
               {/* Next Due Bill */}
               <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
-                <div className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">
+                <div className="text-[10px] font-extrabold text-[#64748b] uppercase tracking-wider">
                   Next Due Bill
                 </div>
                 <div className="text-base font-bold text-[#111827] mt-1 truncate">
@@ -384,7 +411,7 @@ export const OverviewPage: React.FC = () => {
 
               {/* Emergency Reserve */}
               <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0]">
-                <div className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">
+                <div className="text-[10px] font-extrabold text-[#64748b] uppercase tracking-wider">
                   Emergency Runway
                 </div>
                 <div className="text-base font-bold text-[#111827] mt-1">
@@ -399,21 +426,21 @@ export const OverviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Middle Grid: Priorities Action Queue & FINORA Brain Signals */}
+      {/* Middle Grid: Priority Action Queue & FINORA Brain Card */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Priority Action Queue (7 cols) */}
         <div className="lg:col-span-7 bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
           <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3 mb-4">
             <div>
-              <div className="text-[10px] font-extrabold text-[#5a42e8] uppercase tracking-wider">
-                PRIORITY QUEUE
+              <div className="text-[10px] font-black text-[#5a42e8] uppercase tracking-widest">
+                PRIORITY ACTION QUEUE
               </div>
               <h3 className="text-sm font-bold text-[#111827]">
-                Active Financial Actions
+                What Needs to Happen Next
               </h3>
             </div>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#f3f4f6] text-[#4b5563]">
-              Ranked by Urgency
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#f3f4f6] text-[#4b5563]">
+              {brainState.recommendations.length} SIGNALS
             </span>
           </div>
 
@@ -425,7 +452,7 @@ export const OverviewPage: React.FC = () => {
               return (
                 <div
                   key={i}
-                  className={`p-3.5 rounded-xl border text-xs space-y-1.5 transition-all ${
+                  className={`p-4 rounded-xl border text-xs space-y-2 transition-all hover:shadow-xs ${
                     isCrit
                       ? 'bg-[#fff5f5] border-[#fed7d7] text-[#9b2c2c]'
                       : isAttn
@@ -434,15 +461,22 @@ export const OverviewPage: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-xs">{rec.title}</span>
-                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-white/70">
+                    <span className="font-extrabold text-xs flex items-center gap-1.5">
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isCrit ? 'bg-[#dc2626]' : isAttn ? 'bg-[#f59e0b]' : 'bg-[#10b981]'
+                        }`}
+                      />
+                      {rec.title}
+                    </span>
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-white/80">
                       {rec.severity}
                     </span>
                   </div>
                   <p className="text-[#4b5563] text-xs leading-relaxed">{rec.message}</p>
-                  <div className="text-[10px] text-[#6b7280] italic pt-0.5 flex items-center gap-1">
+                  <div className="text-[10px] text-[#6b7280] italic pt-1 flex items-center gap-1">
                     <Sparkles className="w-3 h-3 text-[#5a42e8]" />
-                    <span>{rec.fact}</span>
+                    <span>Fact: {rec.fact}</span>
                   </div>
                 </div>
               );
@@ -450,7 +484,7 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* FINORA Brain Quick Launcher Card (5 cols) */}
+        {/* FINORA Brain AI Quick Card (5 cols) */}
         <div className="lg:col-span-5 bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3 mb-4">
@@ -464,13 +498,13 @@ export const OverviewPage: React.FC = () => {
                 onClick={() => setPage('brain')}
                 className="text-xs font-bold text-[#5a42e8] hover:text-[#4a34db] flex items-center gap-1 cursor-pointer"
               >
-                <span>Open Assistant</span>
+                <span>Ask Assistant</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             <p className="text-xs text-[#6b7280] mb-4 leading-relaxed">
-              Ask deterministic questions derived straight from your stored balances and transactions:
+              Ask deterministic questions calculated directly from your stored records:
             </p>
 
             <div className="space-y-2">
@@ -493,7 +527,7 @@ export const OverviewPage: React.FC = () => {
           </div>
 
           <div className="pt-4 text-[10px] text-[#6b7280] italic border-t border-[#f3f4f6] mt-4">
-            Zero hallucinations · Verified mathematical logic only
+            Deterministic Engine · Zero Hallucinations · Verifiable Math
           </div>
         </div>
       </div>

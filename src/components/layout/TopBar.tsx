@@ -17,6 +17,7 @@ import {
   Target,
   CalendarDays,
   X,
+  CreditCard,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -66,45 +67,46 @@ export const TopBar: React.FC = () => {
 
   return (
     <>
-      <header className="h-13 bg-[#fbfafc] border-b border-[#dedbe8] px-3 sm:px-4 flex items-center justify-between sticky top-0 z-30 select-none">
+      <header className="h-14 bg-white border-b border-[#e5e7eb] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-30 select-none shadow-xs">
         {/* Left: Mobile Drawer Trigger & Title */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMobileDrawerOpen(true)}
-            className="p-1.5 text-[#777286] hover:text-[#302b45] rounded-lg hover:bg-[#f3f2f8] lg:hidden transition-colors shrink-0"
-            title="Open Menu"
+            className="p-1.5 text-[#64748b] hover:text-[#111827] rounded-lg hover:bg-[#f1f5f9] lg:hidden transition-colors shrink-0 cursor-pointer"
+            title="Open Navigation"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="hidden md:block text-xs font-bold text-[#302b45] tracking-tight">
-            Your Financial Command Center
+          <div className="hidden md:flex items-center gap-2 text-xs font-bold text-[#1e293b] tracking-tight">
+            <span>Your Financial Command Center</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
           </div>
         </div>
 
-        {/* Center/Right: Search, Date, Fullscreen, Help, Notifications, Quick Add, Logout */}
+        {/* Right: Search, Date, Fullscreen, Help, Signals, Quick Add, Logout */}
         <div className="flex items-center gap-2 sm:gap-2.5 flex-1 max-w-2xl justify-end ml-2">
-          {/* Global Search */}
+          {/* Global Search Bar */}
           <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-xs">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Ask FINORA or find a record…"
-              className="w-full pl-3 pr-8 py-1.5 bg-[#f1f0f6] focus:bg-white border border-transparent focus:border-[#8b75ef] rounded-lg text-xs text-[#302d3d] placeholder:text-[#8f8b9c] outline-none transition-all"
+              className="w-full pl-3.5 pr-8 py-1.5 bg-[#f4f5f8] focus:bg-white border border-[#e2e8f0] focus:border-[#5a42e8] rounded-xl text-xs text-[#1e293b] placeholder:text-[#94a3b8] outline-none transition-all font-medium"
             />
-            <Search className="w-3.5 h-3.5 text-[#8f8b9c] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-[#94a3b8] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </form>
 
           {/* Date Label */}
-          <div className="hidden xl:block text-[11px] font-semibold text-[#858192] px-1 whitespace-nowrap">
+          <div className="hidden xl:block text-[11px] font-semibold text-[#64748b] px-2.5 py-1 rounded-lg bg-[#f8fafc] border border-[#e2e8f0] whitespace-nowrap">
             {todayStr}
           </div>
 
-          {/* Fullscreen Button (F11) */}
+          {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="hidden sm:flex p-1.5 text-[#777286] hover:text-[#6650d5] bg-[#f3f2f8] hover:bg-[#ebe7fb] rounded-lg transition-colors"
+            className="hidden sm:flex p-1.5 text-[#64748b] hover:text-[#111827] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl transition-colors cursor-pointer"
             title="Toggle full screen · F11"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -113,29 +115,29 @@ export const TopBar: React.FC = () => {
           {/* Help Button (?) */}
           <button
             onClick={() => setIsHelpModalOpen(true)}
-            className="p-1.5 text-[#777286] hover:text-[#6650d5] bg-[#f3f2f8] hover:bg-[#ebe7fb] rounded-lg text-xs font-extrabold transition-colors w-7 h-7 flex items-center justify-center"
+            className="p-1.5 text-[#64748b] hover:text-[#5a42e8] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl text-xs font-black transition-colors w-8 h-8 flex items-center justify-center cursor-pointer"
             title="How FINORA works"
           >
             ?
           </button>
 
-          {/* Notifications Bell */}
+          {/* Signals Notification Bell */}
           <div className="relative">
             <button
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="relative p-1.5 text-[#777286] hover:text-[#6650d5] bg-[#f3f2f8] hover:bg-[#ebe7fb] rounded-lg transition-colors"
-              title="Notifications"
+              className="relative p-1.5 text-[#64748b] hover:text-[#111827] bg-[#f8fafc] hover:bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl transition-colors w-8 h-8 flex items-center justify-center cursor-pointer"
+              title="FINORA Signals"
             >
               <Bell className="w-4 h-4" />
               {highSignals.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#dc2626]" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#dc2626]" />
               )}
             </button>
 
             {isNotificationsOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 z-50 w-80 sm:w-96 bg-white border border-[#dedbe8] rounded-2xl shadow-2xl p-4 animate-fade-in space-y-3">
+                <div className="absolute right-0 top-full mt-2 z-50 w-80 sm:w-96 bg-white border border-[#e5e7eb] rounded-2xl shadow-2xl p-4 animate-fade-in space-y-3">
                   <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-2">
                     <span className="text-xs font-bold text-[#111827] uppercase tracking-wider">
                       FINORA Brain Signals
@@ -180,11 +182,11 @@ export const TopBar: React.FC = () => {
             )}
           </div>
 
-          {/* Quick Add Button with Exact JavaFX Dropdown Menu */}
+          {/* Quick Add Dropdown */}
           <div className="relative">
             <button
               onClick={() => setIsQuickAddMenuOpen(!isQuickAddMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-br from-[#765df1] to-[#6045df] hover:bg-[#6349e4] shadow-xs active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-br from-[#765df1] to-[#5a42e8] hover:bg-[#4a34db] shadow-sm active:scale-95 transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Quick add</span>
@@ -194,13 +196,13 @@ export const TopBar: React.FC = () => {
             {isQuickAddMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsQuickAddMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 z-50 w-52 bg-white border border-[#dedbe8] rounded-xl shadow-xl p-1.5 animate-fade-in space-y-0.5 text-xs">
+                <div className="absolute right-0 top-full mt-2 z-50 w-52 bg-white border border-[#e5e7eb] rounded-2xl shadow-2xl p-1.5 animate-fade-in space-y-0.5 text-xs">
                   <button
                     onClick={() => {
                       setIsQuickAddMenuOpen(false);
                       openQuickAdd('INCOME');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f2f8] hover:text-[#5a42e8] rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f1fc] hover:text-[#5a42e8] rounded-xl transition-colors cursor-pointer"
                   >
                     <Wallet className="w-3.5 h-3.5 text-[#5a42e8]" />
                     <span>Monthly income source</span>
@@ -211,7 +213,7 @@ export const TopBar: React.FC = () => {
                       setIsQuickAddMenuOpen(false);
                       openQuickAdd('EXPENSE');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f2f8] hover:text-[#5a42e8] rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f1fc] hover:text-[#5a42e8] rounded-xl transition-colors cursor-pointer"
                   >
                     <ArrowLeftRight className="w-3.5 h-3.5 text-[#10b981]" />
                     <span>Transaction</span>
@@ -224,7 +226,7 @@ export const TopBar: React.FC = () => {
                       setIsQuickAddMenuOpen(false);
                       openQuickAdd('DEBT');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f2f8] hover:text-[#5a42e8] rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f1fc] hover:text-[#5a42e8] rounded-xl transition-colors cursor-pointer"
                   >
                     <ShieldAlert className="w-3.5 h-3.5 text-[#ef4444]" />
                     <span>Debt or loan</span>
@@ -235,7 +237,7 @@ export const TopBar: React.FC = () => {
                       setIsQuickAddMenuOpen(false);
                       openQuickAdd('GOAL');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f2f8] hover:text-[#5a42e8] rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f1fc] hover:text-[#5a42e8] rounded-xl transition-colors cursor-pointer"
                   >
                     <Target className="w-3.5 h-3.5 text-[#f59e0b]" />
                     <span>Savings goal</span>
@@ -246,7 +248,7 @@ export const TopBar: React.FC = () => {
                       setIsQuickAddMenuOpen(false);
                       setPage('calendar');
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f2f8] hover:text-[#5a42e8] rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[#374151] hover:bg-[#f3f1fc] hover:text-[#5a42e8] rounded-xl transition-colors cursor-pointer"
                   >
                     <CalendarDays className="w-3.5 h-3.5 text-[#8b5cf6]" />
                     <span>Bill or subscription</span>
@@ -256,11 +258,11 @@ export const TopBar: React.FC = () => {
             )}
           </div>
 
-          {/* Dedicated Log Out Button (JavaFX top-logout style) */}
+          {/* Dedicated Log Out Button */}
           <button
             onClick={logout}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-[#fff0f2] text-[#b54b59] hover:bg-[#ffe1e5] hover:text-[#9f3744] border border-[#ffd5db] transition-colors cursor-pointer"
-            title="Log out of FINORA · Ctrl+Shift+L"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#fff0f2] text-[#b54b59] hover:bg-[#ffe1e5] hover:text-[#9f3744] border border-[#ffd5db] transition-colors cursor-pointer"
+            title="Log out of FINORA"
           >
             <LogOut className="w-3.5 h-3.5 text-[#c65e6b]" />
             <span className="hidden sm:inline">Log out</span>
@@ -268,7 +270,7 @@ export const TopBar: React.FC = () => {
         </div>
       </header>
 
-      {/* How FINORA Works Modal (Faithful replication of JavaFX Help Dialog) */}
+      {/* How FINORA Works Modal */}
       {isHelpModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white border border-[#e5e7eb] rounded-2xl w-full max-w-lg shadow-2xl p-6 animate-scale-up space-y-4">
@@ -283,7 +285,7 @@ export const TopBar: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsHelpModalOpen(false)}
-                className="p-1 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f3f4f6]"
+                className="p-1 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#f3f4f6] cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

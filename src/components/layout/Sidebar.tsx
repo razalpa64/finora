@@ -13,6 +13,7 @@ import {
   X,
   LogOut,
   MoreVertical,
+  ShieldCheck,
 } from 'lucide-react';
 import { AppPage, useApp } from '../../context/AppContext';
 
@@ -40,7 +41,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   const getInitials = (name?: string) => {
-    if (!name) return 'U';
+    if (!name) return 'AM';
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -48,19 +49,25 @@ export const Sidebar: React.FC = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
+  const displayName = currentProfile?.displayName || 'Alex Morgan';
+  const username = currentProfile?.username || 'alex.morgan';
+
   const navContent = (
-    <div className="flex flex-col h-full bg-[#101322] text-[#989db1] border-r border-white/5 select-none">
+    <div className="flex flex-col h-full bg-[#0b0e17] text-[#989db1] border-r border-white/5 select-none">
       {/* Brand Header */}
       <div className="p-5 pb-6 flex items-center justify-between border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#806cff] to-[#5a42e8] text-white flex items-center justify-center font-black text-base shadow-md shadow-[#5a42e8]/30">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#806cff] to-[#5a42e8] text-white flex items-center justify-center font-black text-lg shadow-lg shadow-[#5a42e8]/30">
             F
           </div>
           <div>
-            <div className="text-sm font-extrabold text-white tracking-wider">
+            <div className="text-sm font-black text-white tracking-widest flex items-center gap-1.5">
               FINORA
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#5a42e8]/30 text-[#a998ff] border border-[#5a42e8]/40">
+                PRO
+              </span>
             </div>
-            <div className="text-[8px] font-bold text-[#6f748a] tracking-wider uppercase">
+            <div className="text-[8px] font-bold text-[#6f748a] tracking-widest uppercase">
               FINANCIAL OS
             </div>
           </div>
@@ -77,9 +84,9 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Nav Section: COMMAND CENTER */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-thin">
         <div>
-          <div className="px-3 pb-2 text-[9px] font-extrabold text-[#5d6278] tracking-widest uppercase">
+          <div className="px-3 pb-2 text-[9px] font-black text-[#5d6278] tracking-widest uppercase">
             COMMAND CENTER
           </div>
           <div className="space-y-1">
@@ -94,11 +101,11 @@ export const Sidebar: React.FC = () => {
                     setIsMobileDrawerOpen(false);
                   }}
                   className={`
-                    w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer
+                    w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer
                     ${
                       isActive
-                        ? 'bg-[#765dff]/20 text-[#a998ff] font-bold'
-                        : 'text-[#989db1] hover:text-[#d9dbe5] hover:bg-white/[0.045]'
+                        ? 'bg-[#5a42e8]/20 border border-[#5a42e8]/40 text-[#a998ff] font-bold shadow-sm'
+                        : 'text-[#989db1] hover:text-[#ffffff] hover:bg-white/[0.045] border border-transparent'
                     }
                   `}
                 >
@@ -116,7 +123,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Nav Section: INTELLIGENCE */}
         <div>
-          <div className="px-3 pb-2 text-[9px] font-extrabold text-[#5d6278] tracking-widest uppercase">
+          <div className="px-3 pb-2 text-[9px] font-black text-[#5d6278] tracking-widest uppercase">
             INTELLIGENCE
           </div>
           <button
@@ -125,11 +132,11 @@ export const Sidebar: React.FC = () => {
               setIsMobileDrawerOpen(false);
             }}
             className={`
-              w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left border cursor-pointer
+              w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left border cursor-pointer
               ${
                 page === 'brain'
-                  ? 'bg-[#765dff]/20 text-[#a998ff] border-[#7f65ff]/30 font-bold'
-                  : 'text-[#989db1] hover:text-[#d9dbe5] hover:bg-white/[0.045] border-white/5'
+                  ? 'bg-[#5a42e8]/20 text-[#a998ff] border-[#7f65ff]/40 font-bold shadow-sm'
+                  : 'text-[#989db1] hover:text-white hover:bg-white/[0.045] border-white/5'
               }
             `}
           >
@@ -144,18 +151,18 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Footer: Settings & Profile Card */}
-      <div className="p-3 border-t border-white/5 space-y-2 bg-[#0c0e1a]">
+      <div className="p-3 border-t border-white/5 space-y-2 bg-[#080a11]">
         <button
           onClick={() => {
             setPage('settings');
             setIsMobileDrawerOpen(false);
           }}
           className={`
-            w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer
+            w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer
             ${
               page === 'settings'
-                ? 'bg-[#765dff]/20 text-[#a998ff] font-bold'
-                : 'text-[#989db1] hover:text-[#d9dbe5] hover:bg-white/[0.045]'
+                ? 'bg-[#5a42e8]/20 border border-[#5a42e8]/40 text-[#a998ff] font-bold shadow-sm'
+                : 'text-[#989db1] hover:text-[#ffffff] hover:bg-white/[0.045] border border-transparent'
             }
           `}
         >
@@ -171,23 +178,23 @@ export const Sidebar: React.FC = () => {
         <div className="relative">
           <div
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className="p-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] flex items-center justify-between transition-colors cursor-pointer"
+            className="p-3 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] flex items-center justify-between transition-all cursor-pointer border border-white/5"
           >
             <div className="flex items-center gap-2.5 truncate">
-              <div className="w-7 h-7 rounded-lg bg-[#755cf3] text-white flex items-center justify-center font-extrabold text-[10px] shrink-0">
-                {getInitials(currentProfile?.displayName)}
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#755cf3] to-[#5a42e8] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-md">
+                {getInitials(displayName)}
               </div>
-              <div className="truncate">
-                <div className="text-[11px] font-bold text-[#ececf3] truncate">
-                  {currentProfile?.displayName || 'User'}
+              <div className="truncate text-left">
+                <div className="text-xs font-bold text-white truncate">
+                  {displayName}
                 </div>
-                <div className="text-[9px] text-[#6f7489] truncate">
-                  @{currentProfile?.username || 'user'}
+                <div className="text-[10px] text-[#8e8aa9] truncate font-medium">
+                  @{username}
                 </div>
               </div>
             </div>
 
-            <MoreVertical className="w-4 h-4 text-[#6f7489] shrink-0" />
+            <MoreVertical className="w-4 h-4 text-[#8e8aa9] shrink-0" />
           </div>
 
           {/* Profile Dropdown Popover */}
@@ -195,8 +202,8 @@ export const Sidebar: React.FC = () => {
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
               <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-[#16192e] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-fade-in space-y-1">
-                <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8e8aa9] border-b border-white/5 truncate">
-                  {currentProfile?.displayName} · @{currentProfile?.username}
+                <div className="px-3 py-2 text-[11px] font-semibold text-[#8e8aa9] border-b border-white/5 truncate">
+                  {displayName} · @{username}
                 </div>
                 <button
                   onClick={() => {
@@ -219,7 +226,7 @@ export const Sidebar: React.FC = () => {
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:flex w-58 flex-col h-screen sticky top-0 shrink-0 z-20">
+      <aside className="hidden lg:flex w-60 flex-col h-screen sticky top-0 shrink-0 z-20">
         {navContent}
       </aside>
 
