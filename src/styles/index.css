@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #0c0e17;
+    --card-bg: #131625;
+    --sidebar-bg: #0f121d;
+    --border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .light {
+    --bg-main: #f4f6fa;
+    --card-bg: #ffffff;
+    --sidebar-bg: #101322;
+    --border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .midnight {
+    --bg-main: #000000;
+    --card-bg: #09090b;
+    --sidebar-bg: #050507;
+    --border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: #f1f5f9;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  .light body {
+    color: #1e293b;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Mobile safe areas */
+.safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}

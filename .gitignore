@@ -5,3 +5,7 @@ target/
 data/*.lock.db
 data/*.trace.db
 backups/*.zip
+node_modules/
+dist/
+.vite/
+
