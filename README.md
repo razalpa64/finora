@@ -1,185 +1,129 @@
-# FINORA OS
+# FINORA OS — Personal Financial Operating System (Web + Java Backend + Supabase)
 
-**FINORA OS** is an offline-first Personal Financial Operating System for Java 21 and JavaFX. It is designed as a calm, private financial command center rather than a basic expense log.
+**FINORA OS** is a calm, private, intelligent Personal Financial Operating System and Command Center. It converts raw financial data into verified mathematical insights, priority-based monthly plans, debt payoff strategies, and safe daily spending allowances.
 
-FINORA calculates from locally stored records. It does not call an online AI service, invent missing financial data, promise investment returns, or treat internal health scores as professional ratings.
+---
 
-## What is implemented
+## 🌟 What's New in FINORA OS 2.0
 
-### Premium desktop experience
+### 🚀 Modern Responsive Web Architecture
+- **Full Web App with Live Preview**: Runs as a web application accessible from any desktop, tablet, or smartphone browser.
+- **Mobile-First Redesign**: Touch-friendly navigation, mobile bottom navigation bar, floating quick-add button, responsive card feeds, and zero horizontal overflow.
+- **Ultra-Modern Fintech UI**: Sleek dark fintech, midnight OLED, and daylight light themes with glassmorphism, animated health score rings, and real-time state reactivity.
 
-- Original light and dark fintech design system with an integrated compact command bar and an uninterrupted top-to-bottom sidebar
-- Responsive desktop shell with width-and-height-aware compact navigation, safe visual-bound margins for 720p laptops, native maximize and F11 true full-screen mode
-- Guided three-stage startup screen tied to real database, session and FINORA Brain work, with a two-second minimum readable display time
-- Multiple private local profiles with prominent **Sign in** and **Create account** tabs on the first screen, secure registration, logout-based switching, and isolated financial workspaces
-- Optional 30-day “Keep me signed in” session using a revocable random device token—never a saved password
-- Always-visible **Log out** action in the top bar, profile-menu fallback and Ctrl+Shift+L shortcut; logging out revokes the remembered-device session
-- Persistent three-step dashboard setup guide, global help and an expanded Quick Add menu
-- Command-center dashboard, vector navigation icons, data cards, charts, tables, progress visuals, dialogs, loading states and toast feedback
-- Overview, Transactions, Monthly Plan, Debt Center, Goals, Bills & Calendar, Reports, FINORA Brain and Settings screens
+### ⚡ Supabase PostgreSQL Database Integration
+- **Full Supabase Support**: Direct integration with Supabase client (`@supabase/supabase-js`) and PostgreSQL database.
+- **Row Level Security (RLS)**: Isolated multi-tenant security policies so each user only accesses their own records.
+- **Cloud Sync & Migration**: Built-in Supabase configuration in Settings with 1-click connection test, data push/pull, and copyable SQL migration scripts.
+- **Offline-First Resilience**: Seamless local storage and memory fallback for instant offline usage and sample demo exploration.
 
-### Local financial intelligence
+### ☕ Java Backend Architecture
+- **Java 21 Core**: All original Java models (`com.finora.model.*`), DAO interfaces (`com.finora.dao.*`), services (`com.finora.service.*`), and brain engines (`com.finora.brain.*`) preserved and maintained.
+- **Embedded Java Web Server (`FinoraWebServer.java`)**: REST API endpoints for `/api/health`, `/api/calculate/emi`, `/api/calculate/safe-to-spend`, `/api/brain/ask`, and static frontend hosting.
+- **Supabase Postgres Provider (`SupabasePostgresProvider.java`)**: Native JDBC connection provider for Supabase connection poolers.
 
-- `CashFlowEngine` — derives income, expense, essential-cost and upcoming-obligation facts
-- `BudgetEngine` — calculates safe-to-spend and a priority-ordered monthly allocation
-- `DebtEngine` — avalanche, snowball, urgency, hybrid and personal-priority ordering plus payoff forecasts
-- `EMIEngine` — reducing-balance EMI, total interest, repayment and prepayment comparisons
-- `EmergencyFundEngine` — stability-adjusted three/six/nine-month reserve targets
-- `GoalEngine` — priority ordering, required contribution and completion forecast
-- `InvestmentEngine` — educational capacity gating and allocation; no guaranteed return assumptions
-- `ForecastEngine` — event-driven 30-day and six-month cash-flow projections
-- `FinancialHealthEngine` — transparent 0–100 internal score with factor breakdown
-- `RecommendationEngine` — severity-ranked next actions with facts and assumptions
-- `FinoraBrain` — deterministic state analysis for safe spending, affordability, debt order, debt-free timing, health, bills, savings, income shocks, EMI capacity, forecasts and debt-vs-invest decisions
-- `FinoraAIEngine` — tool-first orchestration using Understand → Retrieve → Calculate → Reason → Explain → Remember
-- Provider-neutral `AIProvider` contract with deterministic fallback, Ollama and local llama.cpp/GGUF-service adapters; local endpoints are restricted to loopback addresses
-- Database-backed tools for balances, net worth, income, transactions, spending, budgets, debts, EMI, goals, bills, investments, affordability, forecasts, health and monthly plans
-- Structured user-controlled AI memory with relevance/decay ranking, 200-item growth cap, edit/delete/clear/disable controls and database-truth priority
-- Searchable local conversations capped at 30 conversations and 200 messages per conversation, with new/delete, copy, regenerate and stop controls
-- Embedded educational knowledge retrieval and response validation that withholds unverified local-model numbers or guaranteed-return language
+---
 
-### Working financial operations
+## 📊 Core Engines & Modules
 
-- Account creation and balances
-- Dedicated Income Center with recurring source schedules, monthly-equivalent calculations and receipt recording
-- Clear separation between expected monthly income and income actually received this month
-- Income, expense, transfer, debt/EMI payment, goal and investment transaction types
-- Atomic balance updates for all money movement
-- Debt creation, payment and prioritization
-- Goal creation and atomic earmarking contributions that do not destroy account assets or net worth
-- Bills, subscriptions, due-date timeline and recorded-usage context
-- Category budgets and monthly review analytics
-- Net worth and emergency-reserve calculation
-- Empty-by-default embedded H2 workspace with no sample balances, names or transactions
-- Per-profile ownership on accounts, income, transactions, debts, goals, bills, budgets, investments, net-worth history, AI memory and conversations
-- Cross-profile reads and mutations rejected in prepared DAO queries, including guessed record IDs
-- Existing unscoped financial records are migrated once to the original profile; newly created profiles start empty
-- Local profile credentials derived with PBKDF2-HMAC-SHA256, random salt and sign-in throttling
-- Optional MySQL session connection with TLS required and no hard-coded credentials
-- Timestamped ZIP-script backup and confirmed restore
-- Synchronization version/conflict analysis foundation using IDs, `updated_at` and soft-delete markers
+1. **Financial Command Center (Overview)**
+   - 6-Pillar Financial Health Score (0–100) with animated ring.
+   - Live Net Worth (Total Assets vs Liabilities).
+   - 4 Stat Cards: Monthly Income, Total Outflow, Monthly Surplus, Active Debt.
+   - Today's Financial Snapshot (Safe to spend today, next due bill, emergency reserve, plan health).
+   - Safe-to-Spend calculator with conservative 30% cash-flow buffer.
+   - Priority Action Queue with severity indicators (Critical, Warning, Attention, Healthy).
+   - Guided 3-Step Setup onboarding guide.
 
-## Architecture
+2. **Income Center**
+   - Expected Monthly Plan vs Actually Received This Month.
+   - Recurring income schedules (Weekly, Bi-weekly, Monthly, Quarterly, Annual).
+   - 1-Click "Record Received" action that atomically credits the deposit account and advances next pay date.
 
-```text
-JavaFX UI
-   ↓
-Page / application controllers
-   ↓
-Services and atomic operations
-   ↓
-FINORA Brain engines
-   ↓
-DAO interfaces
-   ↓
-JDBC DAO implementation
-   ↓
-H2 Embedded / MySQL
-```
+3. **Money Movement (Transactions)**
+   - Inflow, Outflow, and Net Movement analytics.
+   - Multi-filter search (by type, category, account, and date).
+   - Dynamic Add Transaction modal with atomic account balance updates.
+   - Responsive desktop table and mobile card feed.
+   - 1-Click CSV / JSON export.
 
-Important boundaries are enforced in the source:
+4. **Monthly Control System (Plan)**
+   - Priority-based suggested allocation (Essentials, Debt & EMI, Emergency, Goals, Investments, Flexible, Reserve).
+   - Interactive "What-If" Income Shock Simulator (-50% to +50%) testing flexible capacity and obligation impact in real time.
+   - Emergency Readiness gauge (months covered vs target).
+   - Educational Investment Capacity Gate.
+   - Category budget meters with over-budget alerts.
 
-- Brain classes contain no JavaFX references.
-- DAO classes contain no UI logic.
-- Pages do not contain SQL.
-- Monetary values use `BigDecimal`.
-- Variable SQL input uses `PreparedStatement`.
-- Transfers, debt payments and goal contributions use JDBC transactions.
-- Heavy initialization, refreshes and database actions run off the JavaFX application thread.
+5. **Debt Center & EMI Engine**
+   - Active liabilities list with balances, interest rates, and next due dates.
+   - 5 Strategy Priority Orderings: Avalanche (Highest rate), Snowball (Lowest balance), Urgency (Nearest due), Hybrid (Multi-factor score), Personal (Manual priority).
+   - Payoff Timeline Forecast (Estimated debt-free month & interest saved).
+   - Standalone Reducing-Balance EMI Calculator.
+   - Prepayment Comparison Simulator (Compare "Reduce Tenure" vs "Reduce EMI").
+   - Record Debt Payment action with atomic liability reduction and source account charge.
 
-## Requirements
+6. **Purposeful Saving (Goals)**
+   - Savings goals with target amounts, funded progress, deadlines, and priorities.
+   - Completion date forecast and on-track status.
+   - Goal Contribution action with safe earmarking that protects net worth.
 
-- JDK 21+
-- Maven 3.9+
-- Windows, macOS or Linux desktop environment
+7. **Bills & Calendar**
+   - Due this week counter & upcoming payment timeline.
+   - Digital Subscriptions tracker with last-used usage recording.
+   - Mark paid/unpaid toggles.
 
-## Run
+8. **Decision Intelligence (Reports)**
+   - Spending mix by category breakdown.
+   - Monthly review (top category, largest single expense, net worth delta, goal pace).
+   - 6-Pillar health breakdown (Savings, Debt, Emergency, Budget, Goals, Cash flow).
 
-### From Maven
+9. **FINORA Brain (AI Assistant)**
+   - Tool-first deterministic intelligence: Understand → Retrieve → Calculate → Reason → Explain.
+   - Verifiable answers with calculation steps, recommendations, assumptions, and `✓ VERIFIED` badge.
+   - Multi-thread conversation history.
+   - Structured AI memory manager (view, edit, delete explicit user preferences).
+   - AI provider settings (Deterministic fallback, Local Ollama, llama.cpp, Cloud consent).
 
-```bash
-cd FINORA
-mvn clean javafx:run
-```
+10. **System Control & Settings**
+    - Supabase PostgreSQL cloud sync (URL, Anon Key, Test Connection, Push/Pull).
+    - Multi-currency selector (INR ₹, USD $, EUR €, GBP £, JPY ¥, CAD $, AUD $, SGD $, AED, CHF).
+    - Theme switcher (Dark Fintech, Daylight Light, Midnight OLED).
+    - Asset Accounts & Wallets management.
+    - Encrypted JSON Workspace Backup export and restore.
 
-### Windows portable package — recommended
+---
 
-The portable Windows distribution contains `FINORA.exe`, a private Java 21 runtime, and a diagnostic batch launcher. Extract the complete ZIP, keep the `runtime` folder beside the executable, and double-click `FINORA.exe`. It does not depend on the computer's `.jar` association or installed Java version.
+## 🛠️ Quick Start
 
-Build the Windows launcher with:
+### 1. Web Application (Development & Live Preview)
 
 ```bash
-mvn clean package -Djavafx.platform=win -Pwindows-portable
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Or build & start production server
+npm run build
+npm start
 ```
 
-### As a self-contained JavaFX JAR
+The web app is accessible at `http://localhost:3000`.
 
-Build on the operating system where FINORA will run so Maven includes that platform's JavaFX native libraries:
+### 2. Java Backend & Web Server
 
 ```bash
-cd FINORA
-mvn clean package
-java -jar target/finora-os-1.0.0.jar
+# Compile with Maven
+mvn clean compile
+
+# Run Java Web Server
+java -cp "target/classes:target/dependency/*" com.finora.web.FinoraWebServer 8080
 ```
 
-The packaged JAR includes JavaFX, H2, MySQL Connector/J and the other runtime dependencies. Its manifest uses `com.finora.Launcher`, a classpath-safe entry point separate from the JavaFX `Application` subclass.
+### 3. Supabase Cloud Database Setup
 
-Do **not** run `target/original-finora-os-1.0.0.jar`; that is the thin pre-shading artifact and does not contain JavaFX runtime components.
-
-The first local launch creates the embedded H2 database in the operating system's per-user application-data directory:
-
-```text
-Windows: %LOCALAPPDATA%\FINORA\data\finora.mv.db
-macOS:   ~/Library/Application Support/FINORA/data/finora.mv.db
-Linux:   ~/.local/share/finora/data/finora.mv.db
-```
-
-A previous `data/finora.mv.db` beside the application is copied into the stable location once when needed. FINORA then asks the first owner to create a local username and password. After a profile exists, the sign-in screen provides **Create another private profile**. Every new profile starts with a completely empty financial workspace—no sample accounts, names, balances, transactions, bills or debts are inserted. Legacy data explicitly marked `workspace_mode=DEMO` by a previous build is removed during migration; unmarked real data is preserved and assigned to the original profile.
-
-## Build and test
-
-```bash
-mvn clean test
-mvn clean package
-```
-
-The automated suite covers:
-
-- EMI and prepayment calculations
-- Debt-priority ordering
-- Empty-by-default H2 schema initialization and legacy-demo removal
-- PBKDF2 local profile registration, authentication and invalid-password rejection
-- End-to-end local FINORA Brain calculations without invented values
-- Live net-worth movement and goal-earmarking invariants
-- Financial intent routing, exact database-backed answers and deterministic EMI calculations
-- Financial-record, AI-conversation and AI-memory isolation across multiple authenticated profiles
-- Memory controls, provider fallback and anti-hallucination response validation
-- Rejection of remote endpoints masquerading as local private models
-- Timestamped backup creation and restore
-
-## Local data and backup
-
-- Default database: the OS-specific FINORA data directory shown above
-- Backups: the sibling `backups/finora_backup_yyyy_MM_dd_HHmmss.zip` directory
-- Backups never overwrite an existing file automatically.
-- Restore requires an explicit confirmation and is available for the local H2 workspace.
-
-To create a completely new local owner workspace, close FINORA and move the OS-specific `finora.mv.db` file to a safe backup location before relaunching. Deleting that file removes both the local profile and financial records, so retain a backup when needed.
-
-## MySQL
-
-Open **Settings → Workspace → MySQL** and enter connection details. Credentials remain in memory for the session and are not written to source code or UI logs. The connector uses `sslMode=REQUIRED` and disables public-key retrieval.
-
-FINORA never silently resolves synchronization conflicts. `SyncService` compares record versions and reports local additions, updates, deletions and conflicts for explicit resolution. Applying a full two-way synchronization policy should be tailored to the deployment's ownership and retention rules before production rollout.
-
-## Financial safety
-
-FINORA UI responses distinguish:
-
-- **Calculated fact** — directly derived from stored records
-- **Recommendation** — a deterministic planning suggestion
-- **Assumption** — a condition required by a forecast or recommendation
-
-All investment output is educational. The application does not provide regulated investment advice, live market prices or guaranteed outcomes.
-#   f i n o r a  
- 
+1. Create a project on [supabase.com](https://supabase.com).
+2. Go to **SQL Editor** in your Supabase project dashboard.
+3. Paste the contents of `supabase/schema.sql` (or copy it directly from FINORA **Settings → Supabase → View SQL Schema**) and click **Run**.
+4. In FINORA OS, go to **Settings → Supabase**, enter your Project URL and Anon Key, and click **Test & Save Connection**.
