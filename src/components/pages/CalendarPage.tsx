@@ -1,246 +1,177 @@
 import React, { useState } from 'react';
 import {
-  CalendarDays,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
   Plus,
-  CheckCircle2,
   Clock,
-  Trash2,
-  Tv,
-  Zap,
-  ShieldAlert,
-  Coins,
-  Check,
+  AlertCircle,
+  Tag,
+  DollarSign,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatMoney } from '../../services/currency';
-import { Bill } from '../../types';
+import { formatCurrency } from '../../services/currency';
 
 export const CalendarPage: React.FC = () => {
-  const {
-    bills,
-    toggleBillPaid,
-    deleteBill,
-    openQuickAdd,
-    brainState,
-    currency,
-  } = useApp();
+  const { transactions, debts, incomeSources, currency, openQuickAdd } = useApp();
 
-  const snapshot = brainState.snapshot;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // 7 days from now
-  const sevenDaysDate = new Date();
-  sevenDaysDate.setDate(sevenDaysDate.getDate() + 7);
-  const sevenDaysStr = sevenDaysDate.toISOString().split('T')[0];
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
 
-  const dueThisWeek = bills
-    .filter((b) => !b.paid && b.dueDate <= sevenDaysStr)
-    .reduce((acc, b) => acc + b.amount, 0);
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
 
-  const monthlySubscriptions = bills
-    .filter((b) => b.subscription)
-    .reduce((acc, b) => acc + b.amount, 0);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = new Date(year, month, 1).getDay();
 
-  const totalUpcoming = snapshot.upcomingBills + snapshot.upcomingDebtCommitments;
+  const prevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
 
-  // Sorted chronological bills
-  const sortedBills = [...bills].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  const subscriptions = bills.filter((b) => b.subscription);
+  const nextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
 
-  const getUrgency = (b: Bill) => {
-    if (b.paid) return { label: 'Paid', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
-    const diff = Math.ceil((new Date(b.dueDate).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return { label: `${Math.abs(diff)}d Overdue`, color: 'bg-rose-500/10 text-rose-400 border-rose-500/30' };
-    if (diff === 0) return { label: 'Due Today', color: 'bg-amber-500/10 text-amber-300 border-amber-500/30' };
-    if (diff <= 7) return { label: `In ${diff} days`, color: 'bg-purple-500/10 text-purple-300 border-purple-500/20' };
-    return { label: `Due ${b.dueDate}`, color: 'bg-white/5 text-slate-400 border-white/5' };
+  const getEventsForDay = (day: number) => {
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    // Transactions matching this date
+    const dayTransactions = transactions.filter((t) => t.date === formattedDate);
+
+    // Debts with due date matching this day
+    const dayDebts = debts.filter((d) => d.dueDateDay === day);
+
+    return {
+      transactions: dayTransactions,
+      debts: dayDebts,
+    };
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-purple-400 mb-1">
-            Financial Calendar
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Bills & Subscriptions
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
+            Cash Flow Calendar
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            See every due date before it becomes a cash-flow surprise.
+          <p className="text-xs sm:text-sm text-[#6b7280] mt-0.5">
+            Visualize recurring salary dates, bill due cycles, and ledger transactions.
           </p>
         </div>
 
-        <button
-          onClick={() => openQuickAdd('bill')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Bill or Subscription</span>
-        </button>
-      </div>
-
-      {/* 3 Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Due This Week
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-rose-400">
-            {formatMoney(dueThisWeek, currency)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            {bills.filter((b) => !b.paid && b.dueDate <= sevenDaysStr).length} obligation(s) in next 7 days
-          </div>
-        </div>
-
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Monthly Subscriptions
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-purple-400">
-            {formatMoney(monthlySubscriptions, currency)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            {subscriptions.length} recorded recurring digital service(s)
-          </div>
-        </div>
-
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Upcoming Total Obligations
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-white">
-            {formatMoney(totalUpcoming, currency)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            Bills + Debt EMI commitments this month
-          </div>
-        </div>
-      </div>
-
-      {/* Grid: Payment Timeline (7 cols) + Subscriptions Tracker (5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Payment Timeline (7 cols) */}
-        <div className="lg:col-span-7 bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white">Upcoming Payment Timeline</h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/5 text-slate-300">
-              {bills.length} Bills
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-white border border-[#e5e7eb] rounded-xl p-1 shadow-xs">
+            <button
+              onClick={prevMonth}
+              className="p-1.5 hover:bg-[#f3f4f6] rounded-lg text-[#6b7280] transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="px-3 text-xs font-bold text-[#111827]">
+              {monthNames[month]} {year}
             </span>
+            <button
+              onClick={nextMonth}
+              className="p-1.5 hover:bg-[#f3f4f6] rounded-lg text-[#6b7280] transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          {bills.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs border border-dashed border-white/10 rounded-xl space-y-3">
-              <p>No bills or scheduled payments recorded.</p>
-              <button
-                onClick={() => openQuickAdd('bill')}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-colors"
+          <button
+            onClick={() => openQuickAdd('EXPENSE')}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-[#5a42e8] text-white hover:bg-[#4a34db] shadow-xs flex items-center gap-1.5 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Event</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-xs overflow-hidden">
+        {/* Days of Week Header */}
+        <div className="grid grid-cols-7 border-b border-[#e5e7eb] bg-[#f9fafb] text-center text-xs font-bold text-[#6b7280] py-3">
+          <span>Sun</span>
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
+        </div>
+
+        {/* Days Cells */}
+        <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-[#e5e7eb]">
+          {/* Empty cells before month start */}
+          {Array.from({ length: firstDayIndex }).map((_, i) => (
+            <div key={`empty-${i}`} className="min-h-[90px] sm:min-h-[110px] bg-[#fafafa]/50 p-2" />
+          ))}
+
+          {/* Actual days */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const dayNum = i + 1;
+            const { transactions: dayTx, debts: dayDebts } = getEventsForDay(dayNum);
+            const isToday =
+              new Date().getDate() === dayNum &&
+              new Date().getMonth() === month &&
+              new Date().getFullYear() === year;
+
+            return (
+              <div
+                key={`day-${dayNum}`}
+                className={`min-h-[90px] sm:min-h-[110px] p-2 flex flex-col justify-between transition-colors hover:bg-[#f8fafc] ${
+                  isToday ? 'bg-[#f3f1fc]/30 ring-1 ring-inset ring-[#5a42e8]' : ''
+                }`}
               >
-                Add First Bill
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedBills.map((b) => {
-                const urgency = getUrgency(b);
-                return (
-                  <div
-                    key={b.id}
-                    className={`p-4 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
-                      b.paid
-                        ? 'bg-white/[0.01] border-white/5 opacity-60'
-                        : 'bg-white/[0.03] border-white/10 hover:border-white/20'
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${
+                      isToday
+                        ? 'bg-[#5a42e8] text-white'
+                        : 'text-[#111827]'
                     }`}
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <button
-                        onClick={() => toggleBillPaid(b.id)}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
-                          b.paid
-                            ? 'bg-emerald-500 border-emerald-500 text-white'
-                            : 'border-white/20 text-transparent hover:border-purple-400'
-                        }`}
-                        title={b.paid ? 'Mark as unpaid' : 'Mark as paid'}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
+                    {dayNum}
+                  </span>
+                  {(dayTx.length > 0 || dayDebts.length > 0) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#5a42e8]" />
+                  )}
+                </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold text-sm truncate ${b.paid ? 'line-through text-slate-400' : 'text-white'}`}>
-                            {b.name}
-                          </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${urgency.color}`}>
-                            {urgency.label}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span>{b.category}</span>
-                          <span>·</span>
-                          <span>{b.recurring ? 'Recurring' : 'One-time'}</span>
-                        </div>
-                      </div>
+                <div className="mt-1 space-y-1 overflow-y-auto max-h-[70px] scrollbar-none">
+                  {dayDebts.map((d) => (
+                    <div
+                      key={`debt-${d.id}`}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fee2e2] text-[#dc2626] truncate"
+                      title={`Debt Due: ${d.name} (${formatCurrency(d.minimumPayment, currency)})`}
+                    >
+                      Due: {d.name}
                     </div>
+                  ))}
 
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="font-black text-sm text-white">{formatMoney(b.amount, currency)}</span>
-                      <button
-                        onClick={() => deleteBill(b.id)}
-                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                        title="Delete bill"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  {dayTx.map((t) => (
+                    <div
+                      key={`tx-${t.id}`}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold truncate ${
+                        t.type === 'INCOME'
+                          ? 'bg-[#dcfce7] text-[#16a34a]'
+                          : 'bg-[#f3f4f6] text-[#374151]'
+                      }`}
+                      title={`${t.category}: ${formatCurrency(t.amount, currency)}`}
+                    >
+                      {t.type === 'INCOME' ? '+' : '-'} {formatCurrency(t.amount, currency)}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Subscriptions Tracker (5 cols) */}
-        <div className="lg:col-span-5 bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-white">Subscriptions & Usage</h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300">
-              {subscriptions.length} Services
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-400">
-            FINORA highlights digital subscriptions and helps monitor service utilization.
-          </p>
-
-          {subscriptions.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs border border-dashed border-white/10 rounded-xl">
-              No digital subscriptions added.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {subscriptions.map((sub) => {
-                return (
-                  <div
-                    key={sub.id}
-                    className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="font-bold text-white text-xs">{sub.name}</div>
-                      <div className="text-[11px] text-slate-400">
-                        {sub.lastUsedDate ? `Last marked used ${sub.lastUsedDate}` : 'Usage tracking active'}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-purple-300">{formatMoney(sub.amount, currency)}</div>
-                      <div className="text-[10px] text-slate-500">/ month</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

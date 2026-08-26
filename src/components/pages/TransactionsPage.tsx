@@ -1,350 +1,269 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowLeftRight,
   Plus,
-  Search,
-  Filter,
-  Download,
   Trash2,
-  TrendingUp,
-  ArrowDownRight,
-  ArrowUpRight,
+  Filter,
+  Search,
+  Download,
   Calendar,
-  Wallet,
   Tag,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatMoney } from '../../services/currency';
-import { TransactionRecord } from '../../types';
+import { formatCurrency } from '../../services/currency';
+import { Transaction, TransactionType } from '../../types';
 
 export const TransactionsPage: React.FC = () => {
-  const {
-    transactions,
-    accounts,
-    deleteTransaction,
-    openQuickAdd,
-    currency,
-  } = useApp();
+  const { transactions, addTransaction, deleteTransaction, currency, openQuickAdd } = useApp();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('ALL');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('ALL');
+  const [filterCategory, setFilterCategory] = useState<string>('ALL');
 
-  // Summary figures
-  const recordedInflow = transactions
+  const filteredTransactions = transactions.filter((t) => {
+    const matchesSearch =
+      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'ALL' || t.type === filterType;
+    const matchesCategory = filterCategory === 'ALL' || t.category === filterCategory;
+    return matchesSearch && matchesType && matchesCategory;
+  });
+
+  const categories = Array.from(new Set(transactions.map((t) => t.category)));
+
+  const totalInflows = transactions
     .filter((t) => t.type === 'INCOME')
-    .reduce((acc, t) => acc + t.amount, 0);
+    .reduce((s, t) => s + t.amount, 0);
 
-  const recordedOutflow = transactions
-    .filter((t) => t.type !== 'INCOME' && t.type !== 'TRANSFER' && t.type !== 'GOAL_CONTRIBUTION')
-    .reduce((acc, t) => acc + t.amount, 0);
+  const totalExpenses = transactions
+    .filter((t) => t.type === 'EXPENSE')
+    .reduce((s, t) => s + t.amount, 0);
 
-  const netMovement = recordedInflow - recordedOutflow;
-
-  const accountMap = useMemo(() => {
-    const map = new Map<string, string>();
-    accounts.forEach((a) => map.set(a.id, a.name));
-    return map;
-  }, [accounts]);
-
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      // Text search
-      const matchesSearch =
-        !searchQuery.trim() ||
-        t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.notes && t.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      // Type filter
-      let matchesType = true;
-      if (selectedType === 'INCOME') matchesType = t.type === 'INCOME';
-      else if (selectedType === 'EXPENSE') matchesType = t.type === 'EXPENSE';
-      else if (selectedType === 'TRANSFER') matchesType = t.type === 'TRANSFER';
-      else if (selectedType === 'DEBT') matchesType = t.type === 'DEBT_PAYMENT' || t.type === 'EMI_PAYMENT';
-      else if (selectedType === 'GOALS') matchesType = t.type === 'GOAL_CONTRIBUTION' || t.type === 'INVESTMENT_CONTRIBUTION';
-
-      // Account filter
-      const matchesAccount =
-        selectedAccountId === 'ALL' || t.accountId === selectedAccountId || t.relatedAccountId === selectedAccountId;
-
-      return matchesSearch && matchesType && matchesAccount;
-    });
-  }, [transactions, searchQuery, selectedType, selectedAccountId]);
-
-  const exportCsv = () => {
-    const headers = ['Date', 'Description', 'Type', 'Category', 'Amount', 'Account', 'Notes'];
+  const exportCSV = () => {
+    const headers = ['Date', 'Type', 'Category', 'Description', 'Amount'];
     const rows = filteredTransactions.map((t) => [
       t.date,
-      `"${t.description.replace(/"/g, '""')}"`,
       t.type,
       `"${t.category}"`,
-      t.amount,
-      `"${accountMap.get(t.accountId) || 'Account'}"`,
-      `"${(t.notes || '').replace(/"/g, '""')}"`,
+      `"${t.description.replace(/"/g, '""')}"`,
+      t.amount.toFixed(2),
     ]);
-
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `finora_transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `finora_transactions_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-purple-400 mb-1">
-            Money Movement
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Transactions
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
+            Transaction Ledger
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Every recorded inflow, outflow, and allocation — without double-counting transfers.
+          <p className="text-xs sm:text-sm text-[#6b7280] mt-0.5">
+            Full audit log of incoming revenues and verified expenditures.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2">
           <button
-            onClick={exportCsv}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/10 transition-colors"
-            title="Export CSV"
+            onClick={exportCSV}
+            className="px-3 py-2 text-xs font-semibold rounded-xl bg-white border border-[#e5e7eb] text-[#374151] hover:bg-[#f9fafb] shadow-xs flex items-center gap-1.5 transition-colors"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Export CSV</span>
+            <Download className="w-3.5 h-3.5 text-[#6b7280]" />
+            <span>Export CSV</span>
           </button>
           <button
-            onClick={() => openQuickAdd('transaction')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 transition-all"
+            onClick={() => openQuickAdd('EXPENSE')}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-[#5a42e8] text-white hover:bg-[#4a34db] shadow-xs flex items-center gap-1.5 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Transaction</span>
+            <span>Record Transaction</span>
           </button>
         </div>
       </div>
 
-      {/* Summary Stats */}
+      {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Total Recorded Inflow</span>
-            <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
+          <div className="text-xs font-bold text-[#6b7280] uppercase tracking-wider">
+            Total Inflow Recorded
           </div>
-          <div className="text-2xl font-black text-emerald-400">
-            +{formatMoney(recordedInflow, currency)}
+          <div className="mt-2 text-2xl font-extrabold text-[#059669]">
+            {formatCurrency(totalInflows, currency)}
           </div>
-        </div>
-
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Total Recorded Outflow</span>
-            <ArrowDownRight className="w-4 h-4 text-rose-400" />
-          </div>
-          <div className="text-2xl font-black text-white">
-            −{formatMoney(recordedOutflow, currency)}
+          <div className="text-xs text-[#6b7280] mt-1 flex items-center gap-1">
+            <ArrowUpRight className="w-3.5 h-3.5 text-[#059669]" />
+            <span>Credits deposited</span>
           </div>
         </div>
 
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Net Movement</span>
-            <span className={`text-xs font-bold ${netMovement >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {netMovement >= 0 ? 'Surplus' : 'Deficit'}
-            </span>
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
+          <div className="text-xs font-bold text-[#6b7280] uppercase tracking-wider">
+            Total Outflows Recorded
           </div>
-          <div className={`text-2xl font-black ${netMovement >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {netMovement >= 0 ? '+' : ''}{formatMoney(netMovement, currency)}
+          <div className="mt-2 text-2xl font-extrabold text-[#dc2626]">
+            {formatCurrency(totalExpenses, currency)}
           </div>
-        </div>
-      </div>
-
-      {/* Filters & Search Toolbar */}
-      <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-          {/* Search bar */}
-          <div className="sm:col-span-6 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search description, category, or notes…"
-              className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          {/* Type Filter */}
-          <div className="sm:col-span-3">
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
-            >
-              <option value="ALL" className="bg-[#131726]">All Transaction Types</option>
-              <option value="INCOME" className="bg-[#131726]">Inflows (Income)</option>
-              <option value="EXPENSE" className="bg-[#131726]">Expenses</option>
-              <option value="TRANSFER" className="bg-[#131726]">Transfers</option>
-              <option value="DEBT" className="bg-[#131726]">Debt / EMI Payments</option>
-              <option value="GOALS" className="bg-[#131726]">Goals / Investments</option>
-            </select>
-          </div>
-
-          {/* Account Filter */}
-          <div className="sm:col-span-3">
-            <select
-              value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
-            >
-              <option value="ALL" className="bg-[#131726]">All Accounts</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id} className="bg-[#131726]">
-                  {a.name}
-                </option>
-              ))}
-            </select>
+          <div className="text-xs text-[#6b7280] mt-1 flex items-center gap-1">
+            <ArrowDownRight className="w-3.5 h-3.5 text-[#dc2626]" />
+            <span>Debits logged</span>
           </div>
         </div>
 
-        {/* Results Counter */}
-        <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
-          <span>Showing {filteredTransactions.length} of {transactions.length} records</span>
-          {(searchQuery || selectedType !== 'ALL' || selectedAccountId !== 'ALL') && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedType('ALL');
-                setSelectedAccountId('ALL');
-              }}
-              className="text-purple-400 hover:text-purple-300 font-semibold text-[11px]"
-            >
-              Clear filters
-            </button>
-          )}
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
+          <div className="text-xs font-bold text-[#6b7280] uppercase tracking-wider">
+            Net Activity
+          </div>
+          <div
+            className={`mt-2 text-2xl font-extrabold ${
+              totalInflows - totalExpenses >= 0 ? 'text-[#059669]' : 'text-[#dc2626]'
+            }`}
+          >
+            {formatCurrency(totalInflows - totalExpenses, currency)}
+          </div>
+          <div className="text-xs text-[#6b7280] mt-1">
+            {filteredTransactions.length} records in view
+          </div>
         </div>
       </div>
 
-      {/* Transactions List: Table on Desktop, Cards on Mobile */}
-      <div className="bg-[#131625] border border-white/10 rounded-2xl shadow-xl overflow-hidden">
+      {/* Filters Bar */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-[#9ca3af] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search transactions by category or description…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] focus:ring-1 focus:ring-[#5a42e8] outline-none"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-3 py-2 text-xs border border-[#d1d5db] rounded-xl bg-white focus:border-[#5a42e8] outline-none font-medium text-[#374151]"
+          >
+            <option value="ALL">All Types</option>
+            <option value="EXPENSE">Expense Only</option>
+            <option value="INCOME">Income Only</option>
+          </select>
+
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-3 py-2 text-xs border border-[#d1d5db] rounded-xl bg-white focus:border-[#5a42e8] outline-none font-medium text-[#374151]"
+          >
+            <option value="ALL">All Categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-xs overflow-hidden">
         {filteredTransactions.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-xs space-y-3">
-            <p>No transactions match your search filter.</p>
-            <button
-              onClick={() => openQuickAdd('transaction')}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-colors"
-            >
-              Add New Transaction
-            </button>
+          <div className="p-12 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-[#f3f1fc] text-[#5a42e8] flex items-center justify-center mx-auto mb-3">
+              <ArrowLeftRight className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-[#111827]">
+              No Transactions Found
+            </h3>
+            <p className="text-xs text-[#6b7280] mt-1 max-w-sm mx-auto">
+              {transactions.length === 0
+                ? 'Your transaction register is empty. Start recording your daily income and expenditures.'
+                : 'No transactions match your current search and filter criteria.'}
+            </p>
+            {transactions.length === 0 && (
+              <button
+                onClick={() => openQuickAdd('EXPENSE')}
+                className="mt-4 px-4 py-2 text-xs font-bold rounded-xl bg-[#5a42e8] text-white hover:bg-[#4a34db] transition-colors"
+              >
+                Record First Transaction
+              </button>
+            )}
           </div>
         ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-white/5 bg-white/[0.02] text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Description</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Account</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4 text-right">Amount</th>
-                    <th className="py-3 px-4 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 text-xs">
-                  {filteredTransactions.map((tx) => {
-                    const isPlus = tx.type === 'INCOME';
-                    return (
-                      <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors group">
-                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap font-mono">{tx.date}</td>
-                        <td className="py-3 px-4 font-semibold text-white">
-                          <div>{tx.description}</div>
-                          {tx.notes && <div className="text-[10px] text-slate-400 font-normal">{tx.notes}</div>}
-                        </td>
-                        <td className="py-3 px-4 text-slate-300">
-                          <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-[11px]">
-                            {tx.category}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                          {accountMap.get(tx.accountId) || 'Account'}
-                          {tx.type === 'TRANSFER' && tx.relatedAccountId && (
-                            <span className="text-purple-400"> → {accountMap.get(tx.relatedAccountId)}</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                          <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/[0.04]">
-                            {tx.type.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td
-                          className={`py-3 px-4 text-right font-black whitespace-nowrap text-sm ${
-                            isPlus ? 'text-emerald-400' : 'text-slate-100'
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[#6b7280] font-semibold">
+                  <th className="p-4">Date</th>
+                  <th className="p-4">Category</th>
+                  <th className="p-4">Description</th>
+                  <th className="p-4">Budget Classification</th>
+                  <th className="p-4">Amount</th>
+                  <th className="p-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e5e7eb]">
+                {filteredTransactions.map((t) => {
+                  const isExp = t.type === 'EXPENSE';
+                  return (
+                    <tr key={t.id} className="hover:bg-[#f9fafb] transition-colors">
+                      <td className="p-4 text-[#4b5563] font-medium whitespace-nowrap">
+                        {t.date}
+                      </td>
+                      <td className="p-4">
+                        <span className="font-bold text-[#111827]">{t.category}</span>
+                      </td>
+                      <td className="p-4 text-[#4b5563]">
+                        {t.description || '—'}
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                            t.budgetCategory === 'NEEDS'
+                              ? 'bg-[#eff6ff] text-[#1d4ed8]'
+                              : t.budgetCategory === 'WANTS'
+                              ? 'bg-[#fdf4ff] text-[#a21caf]'
+                              : 'bg-[#f0fdf4] text-[#15803d]'
                           }`}
                         >
-                          {isPlus ? '+ ' : '− '}{formatMoney(tx.amount, currency)}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <button
-                            onClick={() => deleteTransaction(tx.id)}
-                            className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                            title="Delete transaction"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card Feed View */}
-            <div className="md:hidden divide-y divide-white/5">
-              {filteredTransactions.map((tx) => {
-                const isPlus = tx.type === 'INCOME';
-                return (
-                  <div key={tx.id} className="p-4 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-white text-sm truncate">{tx.description}</div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span>{tx.date}</span>
-                          <span>·</span>
-                          <span className="text-purple-300">{tx.category}</span>
-                        </div>
-                      </div>
-                      <div
-                        className={`text-base font-black shrink-0 ${
-                          isPlus ? 'text-emerald-400' : 'text-white'
-                        }`}
-                      >
-                        {isPlus ? '+ ' : '− '}{formatMoney(tx.amount, currency)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                      <span>{accountMap.get(tx.accountId) || 'Account'}</span>
-                      <button
-                        onClick={() => deleteTransaction(tx.id)}
-                        className="text-rose-400 hover:text-rose-300 p-1"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
+                          {t.budgetCategory || 'NEEDS'}
+                        </span>
+                      </td>
+                      <td className="p-4 whitespace-nowrap">
+                        <span
+                          className={`font-extrabold text-sm ${
+                            isExp ? 'text-[#dc2626]' : 'text-[#16a34a]'
+                          }`}
+                        >
+                          {isExp ? '-' : '+'}
+                          {formatCurrency(t.amount, currency)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <button
+                          onClick={() => deleteTransaction(t.id)}
+                          className="p-1.5 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
+                          title="Delete Transaction"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

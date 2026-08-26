@@ -8,8 +8,8 @@ export interface CurrencyConfig {
 }
 
 export const SUPPORTED_CURRENCIES: Record<string, CurrencyConfig> = {
-  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', rateToInr: 1 },
   USD: { code: 'USD', symbol: '$', name: 'US Dollar', rateToInr: 83.5 },
+  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', rateToInr: 1 },
   EUR: { code: 'EUR', symbol: '€', name: 'Euro', rateToInr: 91.2 },
   GBP: { code: 'GBP', symbol: '£', name: 'British Pound', rateToInr: 107.8 },
   JPY: { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rateToInr: 0.55 },
@@ -20,12 +20,12 @@ export const SUPPORTED_CURRENCIES: Record<string, CurrencyConfig> = {
   CHF: { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc', rateToInr: 94.5 },
 };
 
-export function formatMoney(amount: number | null | undefined, currencyCode = 'INR'): string {
+export function formatMoney(amount: number | null | undefined, currencyCode = 'USD'): string {
   if (amount === null || amount === undefined || isNaN(amount)) {
     return '—';
   }
   
-  const curr = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.INR;
+  const curr = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.USD;
   const isNegative = amount < 0;
   const absVal = Math.abs(amount);
 
@@ -49,8 +49,10 @@ export function formatMoney(amount: number | null | undefined, currencyCode = 'I
   return `${sign}${curr.symbol}${formatted}`;
 }
 
-export function formatCompactMoney(amount: number, currencyCode = 'INR'): string {
-  const curr = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.INR;
+export const formatCurrency = formatMoney;
+
+export function formatCompactMoney(amount: number, currencyCode = 'USD'): string {
+  const curr = SUPPORTED_CURRENCIES[currencyCode] || SUPPORTED_CURRENCIES.USD;
   const isNegative = amount < 0;
   const abs = Math.abs(amount);
   

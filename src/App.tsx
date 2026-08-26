@@ -7,6 +7,9 @@ import { QuickAddModal } from './components/layout/QuickAddModal';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { ToastContainer } from './components/layout/Toast';
 
+// Auth Screen
+import { AuthView } from './components/pages/AuthView';
+
 // Pages
 import { OverviewPage } from './components/pages/OverviewPage';
 import { IncomePage } from './components/pages/IncomePage';
@@ -20,7 +23,17 @@ import { BrainPage } from './components/pages/BrainPage';
 import { SettingsPage } from './components/pages/SettingsPage';
 
 const AppContent: React.FC = () => {
-  const { page } = useApp();
+  const { currentProfile, page } = useApp();
+
+  // If not signed in, show Auth / Sign In screen
+  if (!currentProfile) {
+    return (
+      <>
+        <AuthView />
+        <ToastContainer />
+      </>
+    );
+  }
 
   const renderActivePage = () => {
     switch (page) {
@@ -50,14 +63,14 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0e17] text-slate-100 flex flex-col lg:flex-row antialiased selection:bg-purple-500 selection:text-white">
+    <div className="min-h-screen bg-[#f4f6fa] text-[#191c27] flex flex-col lg:flex-row antialiased selection:bg-[#5a42e8] selection:text-white">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-20 lg:pb-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
           {renderActivePage()}
         </main>
       </div>

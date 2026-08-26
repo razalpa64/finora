@@ -1,488 +1,429 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
-  CreditCard,
+  ShieldAlert,
   Plus,
+  Trash2,
+  Edit2,
   TrendingDown,
   Calculator,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Trash2,
-  ArrowRight,
-  ShieldAlert,
   Zap,
+  Clock,
   Sparkles,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { useApp } from '../../context/AppContext';
-import { formatMoney } from '../../services/currency';
-import {
-  calculateEMI,
-  calculatePrepayment,
-  DebtStrategy,
-  forecastDebtPayoff,
-  prioritizeDebts,
-} from '../../services/brain';
-import { Debt } from '../../types';
+import { formatCurrency } from '../../services/currency';
+import { DebtStrategy, DebtItem, DebtCategory } from '../../types';
 
 export const DebtPage: React.FC = () => {
   const {
     debts,
-    accounts,
-    recordDebtPayment,
+    addDebt,
+    updateDebt,
     deleteDebt,
-    openQuickAdd,
-    brainState,
+    debtStrategy,
+    setDebtStrategy,
+    debtMonthlyBudget,
+    setDebtMonthlyBudget,
+    debtPayoffPlan,
     currency,
   } = useApp();
 
-  const snapshot = brainState.snapshot;
-  const [selectedStrategy, setSelectedStrategy] = useState<DebtStrategy>('HYBRID');
-  const [selectedDebtForPayment, setSelectedDebtForPayment] = useState<Debt | null>(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentAccountId, setPaymentAccountId] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Standalone EMI Calculator state
-  const [emiPrincipal, setEmiPrincipal] = useState('500000');
-  const [emiRate, setEmiRate] = useState('9.5');
-  const [emiMonths, setEmiMonths] = useState('36');
-  const [emiResult, setEmiResult] = useState(() => calculateEMI(500000, 9.5, 36));
+  const [name, setName] = useState('');
+  const [balance, setBalance] = useState('');
+  const [interestRate, setInterestRate] = useState('');
+  const [minPayment, setMinPayment] = useState('');
+  const [category, setCategory] = useState<DebtCategory>('CREDIT_CARD');
+  const [dueDate, setDueDate] = useState('15');
 
-  // Prepayment Simulator state
-  const [extraPayment, setExtraPayment] = useState('50000');
-  const [prepayMode, setPrepayMode] = useState<'REDUCE_TENURE' | 'REDUCE_EMI'>('REDUCE_TENURE');
-  const [prepayResult, setPrepayResult] = useState(() =>
-    calculatePrepayment(500000, 9.5, 36, emiResult.emi, 50000, true)
-  );
+  const totalBalance = debts.reduce((sum, d) => sum + d.currentBalance, 0);
+  const totalMinPayment = debts.reduce((sum, d) => sum + d.minimumPayment, 0);
 
-  const totalDebt = snapshot.liabilities;
-  const monthlyCommitments = debts.reduce((acc, d) => acc + d.minimumPayment, 0);
+  const openNewModal = () => {
+    setEditingId(null);
+    setName('');
+    setBalance('');
+    setInterestRate('18.0');
+    setMinPayment('');
+    setCategory('CREDIT_CARD');
+    setDueDate('15');
+    setIsModalOpen(true);
+  };
 
-  // Ranked debts by selected strategy
-  const prioritized = useMemo(() => {
-    return prioritizeDebts(debts, selectedStrategy, snapshot.asOf);
-  }, [debts, selectedStrategy, snapshot.asOf]);
+  const openEditModal = (d: DebtItem) => {
+    setEditingId(d.id);
+    setName(d.name);
+    setBalance(d.currentBalance.toString());
+    setInterestRate(d.interestRate.toString());
+    setMinPayment(d.minimumPayment.toString());
+    setCategory(d.category);
+    setDueDate(d.dueDateDay.toString());
+    setIsModalOpen(true);
+  };
 
-  // Payoff forecast using monthly plan allocation or minimums
-  const monthlyPaymentAssumption =
-    brainState.monthlyPlan.debtAndEmi > 0 ? brainState.monthlyPlan.debtAndEmi : monthlyCommitments;
-  const payoffForecast = useMemo(() => {
-    return forecastDebtPayoff(debts, monthlyPaymentAssumption);
-  }, [debts, monthlyPaymentAssumption]);
-
-  const handleCalculateEmi = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const p = parseFloat(emiPrincipal);
-      const r = parseFloat(emiRate);
-      const m = parseInt(emiMonths);
-      if (p > 0 && r >= 0 && m > 0) {
-        const res = calculateEMI(p, r, m);
-        setEmiResult(res);
+    const bal = parseFloat(balance);
+    const rate = parseFloat(interestRate);
+    const minP = parseFloat(minPayment);
+    const day = parseInt(dueDate, 10);
 
-        const x = parseFloat(extraPayment);
-        if (x > 0 && x < p) {
-          const prepay = calculatePrepayment(p, r, m, res.emi, x, prepayMode === 'REDUCE_TENURE');
-          setPrepayResult(prepay);
-        }
-      }
-    } catch (err) {
-      console.error(err);
+    if (isNaN(bal) || isNaN(rate) || isNaN(minP)) return;
+
+    if (editingId) {
+      updateDebt(editingId, {
+        name,
+        currentBalance: bal,
+        interestRate: rate,
+        minimumPayment: minP,
+        category,
+        dueDateDay: day || 1,
+      });
+    } else {
+      addDebt({
+        name,
+        currentBalance: bal,
+        interestRate: rate,
+        minimumPayment: minP,
+        category,
+        dueDateDay: day || 1,
+      });
     }
-  };
-
-  const handlePrepaymentChange = (extraStr: string, mode: 'REDUCE_TENURE' | 'REDUCE_EMI') => {
-    setExtraPayment(extraStr);
-    setPrepayMode(mode);
-    try {
-      const p = parseFloat(emiPrincipal);
-      const r = parseFloat(emiRate);
-      const m = parseInt(emiMonths);
-      const x = parseFloat(extraStr);
-      if (p > 0 && r >= 0 && m > 0 && x > 0 && x < p) {
-        const prepay = calculatePrepayment(p, r, m, emiResult.emi, x, mode === 'REDUCE_TENURE');
-        setPrepayResult(prepay);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleOpenPaymentModal = (debt: Debt) => {
-    setSelectedDebtForPayment(debt);
-    setPaymentAmount(Math.min(debt.minimumPayment || debt.remainingAmount, debt.remainingAmount).toString());
-    if (accounts.length > 0) {
-      setPaymentAccountId(accounts[0].id);
-    }
-  };
-
-  const handlePaymentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDebtForPayment || !paymentAccountId) return;
-    const amt = parseFloat(paymentAmount);
-    if (isNaN(amt) || amt <= 0) return;
-
-    recordDebtPayment(selectedDebtForPayment.id, paymentAccountId, amt);
-    if (amt >= selectedDebtForPayment.remainingAmount) {
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-    }
-    setSelectedDebtForPayment(null);
+    setIsModalOpen(false);
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-purple-400 mb-1">
-            Debt Management & Intelligence
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Debt Center
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
+            Debt Elimination Engine
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Compare payoff strategies, track reducing-balance loans, and simulate prepayments.
+          <p className="text-xs sm:text-sm text-[#6b7280] mt-0.5">
+            Avalanche, Snowball, Urgency, and Hybrid payoff mathematical engines.
           </p>
         </div>
 
         <button
-          onClick={() => openQuickAdd('debt')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30 transition-all self-start sm:self-auto"
+          onClick={openNewModal}
+          className="px-4 py-2 text-xs font-bold rounded-xl bg-[#5a42e8] text-white hover:bg-[#4a34db] shadow-xs flex items-center gap-2 transition-colors self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Add Debt or Loan</span>
+          <span>Add Debt Liability</span>
         </button>
       </div>
 
-      {/* Summary Stat Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Total Active Liabilities
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
+          <div className="text-xs font-bold text-[#6b7280] uppercase tracking-wider">
+            Total Outstanding Balance
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-rose-400">
-            {formatMoney(totalDebt, currency)}
+          <div className="mt-2 text-2xl font-extrabold text-[#dc2626]">
+            {formatCurrency(totalBalance, currency)}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            {debts.length} active recorded loan(s)
-          </div>
-        </div>
-
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Estimated Debt-Free Date
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-400">
-            {payoffForecast.debtFreeMonth || '—'}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            {payoffForecast.months > 0 ? `~${payoffForecast.months} months at planned payment pace` : 'No debts active'}
+          <div className="text-xs text-[#6b7280] mt-1">
+            Across {debts.length} active liabilities
           </div>
         </div>
 
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Monthly Minimum Commitments
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
+          <div className="text-xs font-bold text-[#6b7280] uppercase tracking-wider">
+            Total Min. Monthly Due
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-white">
-            {formatMoney(monthlyCommitments, currency)}
+          <div className="mt-2 text-2xl font-extrabold text-[#111827]">
+            {formatCurrency(totalMinPayment, currency)}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">
-            Required payments before flexible spending
+          <div className="text-xs text-[#6b7280] mt-1">
+            Required baseline contractual payment
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-xs">
+          <div className="text-xs font-bold text-[#6b7280] uppercase tracking-wider">
+            Estimated Freedom Date
+          </div>
+          <div className="mt-2 text-2xl font-extrabold text-[#059669]">
+            {debtPayoffPlan.debtFreeDate || (debts.length === 0 ? 'Debt Free!' : 'Calculating…')}
+          </div>
+          <div className="text-xs text-[#6b7280] mt-1">
+            Total interest to be paid: {formatCurrency(debtPayoffPlan.totalInterestPaid, currency)}
           </div>
         </div>
       </div>
 
-      {/* Debt Strategy Selector & Prioritized List */}
-      <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-white">Prioritized Debt Repayment Order</h3>
-            <p className="text-xs text-slate-400">
-              Select a mathematical payoff strategy to rank which debt gets extra money first.
-            </p>
-          </div>
+      {/* Payoff Engine Strategy Selector */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+        <h2 className="text-sm font-bold text-[#111827] uppercase tracking-wider mb-4">
+          Select Mathematical Payoff Model
+        </h2>
 
-          {/* Strategy Pills */}
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl overflow-x-auto scrollbar-none">
-            {[
-              { id: 'HYBRID' as DebtStrategy, label: 'Hybrid' },
-              { id: 'AVALANCHE' as DebtStrategy, label: 'Avalanche' },
-              { id: 'SNOWBALL' as DebtStrategy, label: 'Snowball' },
-              { id: 'URGENCY' as DebtStrategy, label: 'Urgency' },
-              { id: 'PERSONAL_PRIORITY' as DebtStrategy, label: 'Personal' },
-            ].map((st) => (
-              <button
-                key={st.id}
-                onClick={() => setSelectedStrategy(st.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  selectedStrategy === st.id
-                    ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {st.label}
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            {
+              id: 'AVALANCHE',
+              title: 'Avalanche (Optimal)',
+              desc: 'Highest interest rate first. Mathematically minimizes total interest paid.',
+            },
+            {
+              id: 'SNOWBALL',
+              title: 'Snowball (Psychological)',
+              desc: 'Lowest balance first. Yields quick psychological wins and momentum.',
+            },
+            {
+              id: 'URGENCY',
+              title: 'Urgency Priority',
+              desc: 'Focuses on immediate due dates and severe penal rates.',
+            },
+            {
+              id: 'HYBRID',
+              title: 'Hybrid Finora AI',
+              desc: 'Balances interest savings against account liquidation speed.',
+            },
+          ].map((strat) => (
+            <button
+              key={strat.id}
+              onClick={() => setDebtStrategy(strat.id as DebtStrategy)}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                debtStrategy === strat.id
+                  ? 'border-[#5a42e8] bg-[#f3f1fc] text-[#111827] ring-1 ring-[#5a42e8]'
+                  : 'border-[#e5e7eb] bg-white text-[#4b5563] hover:border-[#cbd5e1]'
+              }`}
+            >
+              <div className="font-bold text-xs text-[#111827]">{strat.title}</div>
+              <div className="text-[11px] text-[#6b7280] mt-1 leading-relaxed">
+                {strat.desc}
+              </div>
+            </button>
+          ))}
         </div>
 
-        {/* Debts list */}
+        {/* Monthly Payment Slider */}
+        <div className="mt-6 pt-5 border-t border-[#e5e7eb] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="text-xs font-bold text-[#111827]">
+              Dedicated Monthly Debt Payoff Budget
+            </div>
+            <div className="text-[11px] text-[#6b7280]">
+              Must be at least minimum payment total ({formatCurrency(totalMinPayment, currency)})
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              value={debtMonthlyBudget}
+              onChange={(e) => setDebtMonthlyBudget(parseFloat(e.target.value) || 0)}
+              className="w-32 px-3 py-1.5 text-xs font-bold border border-[#d1d5db] rounded-xl text-right focus:border-[#5a42e8] outline-none"
+            />
+            <span className="text-xs text-[#6b7280] font-bold">/ month</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Debts Table */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-[#e5e7eb] flex items-center justify-between">
+          <h2 className="text-sm font-bold text-[#111827]">
+            Active Debt Accounts
+          </h2>
+          <span className="text-xs text-[#6b7280]">{debts.length} liabilities</span>
+        </div>
+
         {debts.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-xs border border-dashed border-white/10 rounded-xl">
-            No active debts or loans recorded. You are completely debt-free! 🎯
+          <div className="p-12 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-[#ecfdf5] text-[#10b981] flex items-center justify-center mx-auto mb-3">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-[#111827]">
+              No Debt Recorded
+            </h3>
+            <p className="text-xs text-[#6b7280] mt-1 max-w-sm mx-auto">
+              You are completely debt-free! If you have credit cards, loans, or mortgages, add them to run the payoff scheduler.
+            </p>
+            <button
+              onClick={openNewModal}
+              className="mt-4 px-4 py-2 text-xs font-bold rounded-xl bg-[#5a42e8] text-white hover:bg-[#4a34db] transition-colors"
+            >
+              Add Liability
+            </button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {prioritized.map((item, index) => {
-              const d = item.debt;
-              const progress = Math.min(100, Math.round(((d.originalAmount - d.remainingAmount) / d.originalAmount) * 100));
-              return (
-                <div
-                  key={d.id}
-                  className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-300 font-black text-xs flex items-center justify-center shrink-0 border border-purple-500/30">
-                        {index + 1}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[#6b7280] font-semibold">
+                  <th className="p-4">Account</th>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Balance</th>
+                  <th className="p-4">APR %</th>
+                  <th className="p-4">Min Payment</th>
+                  <th className="p-4">Due Day</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e5e7eb]">
+                {debts.map((d) => (
+                  <tr key={d.id} className="hover:bg-[#f9fafb] transition-colors">
+                    <td className="p-4 font-bold text-[#111827]">{d.name}</td>
+                    <td className="p-4">
+                      <span className="px-2 py-0.5 rounded-md bg-[#f3f4f6] text-[#374151] font-semibold text-[11px]">
+                        {d.category}
                       </span>
-                      <span className="font-bold text-white text-sm truncate">{d.name}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20">
-                        {d.interestRate}% Interest
-                      </span>
-                      {d.penaltyRisk && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1">
-                          <ShieldAlert className="w-3 h-3" /> Penalty Risk
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-slate-300">{item.reason}</p>
-
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span>Due: {d.dueDate || 'No due date'}</span>
-                      <span>·</span>
-                      <span>Min Payment: {formatMoney(d.minimumPayment, currency)}</span>
-                    </div>
-
-                    {/* Payoff Progress */}
-                    <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden max-w-md mt-2">
-                      <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${progress}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between md:justify-end gap-4 shrink-0">
-                    <div className="text-right">
-                      <div className="text-base font-black text-white">
-                        {formatMoney(d.remainingAmount, currency)}
+                    </td>
+                    <td className="p-4 font-extrabold text-[#dc2626]">
+                      {formatCurrency(d.currentBalance, currency)}
+                    </td>
+                    <td className="p-4 font-bold text-[#111827]">{d.interestRate}%</td>
+                    <td className="p-4 font-medium text-[#4b5563]">
+                      {formatCurrency(d.minimumPayment, currency)}
+                    </td>
+                    <td className="p-4 text-[#4b5563]">Day {d.dueDateDay} of month</td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEditModal(d)}
+                          className="p-1.5 rounded-lg text-[#6b7280] hover:text-[#111827] hover:bg-[#e5e7eb] transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteDebt(d.id)}
+                          className="p-1.5 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <div className="text-[10px] text-slate-500">
-                        of {formatMoney(d.originalAmount, currency)} ({progress}% paid)
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleOpenPaymentModal(d)}
-                        className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-colors"
-                      >
-                        Record Payment
-                      </button>
-
-                      <button
-                        onClick={() => deleteDebt(d.id)}
-                        className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Delete liability"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
-      {/* Standalone Reducing-Balance EMI Calculator & Prepayment Simulator */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* EMI Calculator (6 cols) */}
-        <div className="lg:col-span-6 bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-purple-400" />
-            <h3 className="text-base font-bold text-white">Reducing-Balance EMI Calculator</h3>
-          </div>
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl w-full max-w-md shadow-2xl p-6 animate-scale-up">
+            <h3 className="text-base font-extrabold text-[#111827] mb-4">
+              {editingId ? 'Edit Debt Liability' : 'Add Debt Liability'}
+            </h3>
 
-          <form onSubmit={handleCalculateEmi} className="space-y-3 text-xs">
-            <div className="grid grid-cols-3 gap-3">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Loan Amount</label>
+                <label className="block text-xs font-bold text-[#374151] mb-1">
+                  Account / Creditor Name
+                </label>
                 <input
-                  type="number"
-                  value={emiPrincipal}
-                  onChange={(e) => setEmiPrincipal(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Annual Rate %</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={emiRate}
-                  onChange={(e) => setEmiRate(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Tenure (Months)</label>
-                <input
-                  type="number"
-                  value={emiMonths}
-                  onChange={(e) => setEmiMonths(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-purple-500"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 transition-colors"
-            >
-              Recalculate EMI
-            </button>
-          </form>
-
-          {/* EMI Results */}
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/5">
-            <div className="p-3 rounded-xl bg-purple-600/10 border border-purple-500/20 text-center">
-              <div className="text-[10px] text-purple-300 font-bold uppercase">Monthly EMI</div>
-              <div className="text-sm sm:text-base font-black text-white mt-0.5">
-                {formatMoney(emiResult.emi, currency)}
-              </div>
-            </div>
-            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-center">
-              <div className="text-[10px] text-slate-400 font-bold uppercase">Total Interest</div>
-              <div className="text-sm sm:text-base font-black text-rose-300 mt-0.5">
-                {formatMoney(emiResult.totalInterest, currency)}
-              </div>
-            </div>
-            <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 text-center">
-              <div className="text-[10px] text-slate-400 font-bold uppercase">Total Repayment</div>
-              <div className="text-sm sm:text-base font-black text-slate-200 mt-0.5">
-                {formatMoney(emiResult.totalRepayment, currency)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Prepayment Simulator (6 cols) */}
-        <div className="lg:col-span-6 bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-base font-bold text-white">Prepayment Simulator</h3>
-          </div>
-
-          <p className="text-xs text-slate-400">
-            See how much interest you save by making a lump-sum extra principal payment.
-          </p>
-
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Extra Payment Amount</label>
-                <input
-                  type="number"
-                  value={extraPayment}
-                  onChange={(e) => handlePrepaymentChange(e.target.value, prepayMode)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Prepayment Mode</label>
-                <select
-                  value={prepayMode}
-                  onChange={(e) => handlePrepaymentChange(extraPayment, e.target.value as any)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500"
-                >
-                  <option value="REDUCE_TENURE" className="bg-[#131726]">Reduce Loan Tenure</option>
-                  <option value="REDUCE_EMI" className="bg-[#131726]">Reduce Monthly EMI</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-300">Estimated Interest Saved:</span>
-                <span className="text-lg font-black text-emerald-400">
-                  {formatMoney(prepayResult.interestSaved, currency)}
-                </span>
-              </div>
-              <div className="text-xs text-slate-300">
-                {prepayMode === 'REDUCE_TENURE'
-                  ? `Finish your loan ${prepayResult.monthsReduced} months earlier! New tenure: ${prepayResult.newTenureMonths} months.`
-                  : `New lower monthly EMI: ${formatMoney(prepayResult.newEmi, currency)} with tenure unchanged.`}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Record Debt Payment Modal */}
-      {selectedDebtForPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-md bg-[#131726] border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-white mb-1">Record Debt Payment</h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Payment to <span className="font-semibold text-white">{selectedDebtForPayment.name}</span>. Remaining:{' '}
-              {formatMoney(selectedDebtForPayment.remainingAmount, currency)}
-            </p>
-
-            <form onSubmit={handlePaymentSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Payment Amount ({currency})</label>
-                <input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   required
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-purple-500"
+                  placeholder="e.g. Chase Sapphire Reserve"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#374151] mb-1">
+                    Current Balance
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={balance}
+                    onChange={(e) => setBalance(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#374151] mb-1">
+                    APR Interest Rate (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="18.5"
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#374151] mb-1">
+                    Minimum Payment
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="50.00"
+                    value={minPayment}
+                    onChange={(e) => setMinPayment(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#374151] mb-1">
+                    Due Day of Month (1-31)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full px-3.5 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Pay From Account</label>
+                <label className="block text-xs font-bold text-[#374151] mb-1">
+                  Debt Category
+                </label>
                 <select
-                  value={paymentAccountId}
-                  onChange={(e) => setPaymentAccountId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as DebtCategory)}
+                  className="w-full px-3 py-2 text-xs border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none bg-white"
                 >
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id} className="bg-[#131726]">
-                      {a.name} ({formatMoney(a.balance, currency)})
-                    </option>
-                  ))}
+                  <option value="CREDIT_CARD">Credit Card</option>
+                  <option value="PERSONAL_LOAN">Personal Loan</option>
+                  <option value="STUDENT_LOAN">Student Loan</option>
+                  <option value="AUTO_LOAN">Auto Loan</option>
+                  <option value="MORTGAGE">Mortgage</option>
+                  <option value="MEDICAL">Medical Debt</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedDebtForPayment(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl hover:bg-white/5"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-[#6b7280] hover:bg-[#f3f4f6] rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-xl shadow-lg shadow-purple-600/30"
+                  className="px-4 py-2 text-xs font-bold bg-[#5a42e8] text-white rounded-xl hover:bg-[#4a34db]"
                 >
-                  Apply Payment
+                  {editingId ? 'Save Changes' : 'Add Liability'}
                 </button>
               </div>
             </form>

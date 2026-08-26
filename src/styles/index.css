@@ -2,40 +2,34 @@
 
 @layer base {
   :root {
-    --bg-main: #0c0e17;
-    --card-bg: #131625;
-    --sidebar-bg: #0f121d;
-    --border-color: rgba(255, 255, 255, 0.08);
-  }
-
-  .light {
     --bg-main: #f4f6fa;
     --card-bg: #ffffff;
     --sidebar-bg: #101322;
-    --border-color: rgba(0, 0, 0, 0.08);
+    --border-color: #e5e7eb;
+    --text-primary: #191c27;
+    --text-secondary: #6b7280;
+    --primary-blue: #5a42e8;
+    --primary-hover: #4c35d4;
   }
 
-  .midnight {
-    --bg-main: #000000;
-    --card-bg: #09090b;
-    --sidebar-bg: #050507;
-    --border-color: rgba(255, 255, 255, 0.12);
+  .dark {
+    --bg-main: #0f121e;
+    --card-bg: #161a29;
+    --sidebar-bg: #0b0d17;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
   }
 
   body {
-    background-color: #0c0e17;
-    color: #f1f5f9;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-  }
-
-  .light body {
-    background-color: #f4f6fa;
-    color: #1e293b;
   }
 }
 
-/* Custom scrollbars */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -44,24 +38,14 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: #cbd5e1;
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* Mobile safe areas */
+/* Mobile Safe Areas */
 .safe-area-bottom {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }

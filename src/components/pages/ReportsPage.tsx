@@ -1,226 +1,184 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart3,
-  PieChart,
   TrendingUp,
-  ShieldCheck,
-  ArrowUpRight,
-  ArrowDownRight,
-  Sparkles,
-  HelpCircle,
-  Coins,
+  Download,
+  Calendar,
+  Layers,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatMoney } from '../../services/currency';
+import { formatCurrency } from '../../services/currency';
 
 export const ReportsPage: React.FC = () => {
-  const { brainState, currency } = useApp();
-  const snapshot = brainState.snapshot;
-  const health = brainState.health;
+  const {
+    cashFlow,
+    forecast,
+    budgetAnalysis,
+    healthScore,
+    transactions,
+    currency,
+  } = useApp();
 
-  const surplus = snapshot.recordedIncome - snapshot.monthlyOutflow;
-  const surplusRate =
-    snapshot.recordedIncome > 0 ? ((Math.max(0, surplus) / snapshot.recordedIncome) * 100).toFixed(1) : '0';
-
-  // Category breakdown
-  const categoryEntries = Object.entries(snapshot.expenseByCategory).sort((a, b) => b[1] - a[1]);
-  const totalExpense = snapshot.monthlyExpenses;
-
-  // Largest expense transaction
-  const largestExpense = snapshot.transactions
-    .filter((t) => t.type === 'EXPENSE')
-    .sort((a, b) => b.amount - a.amount)[0];
-
-  const colors = ['bg-purple-500', 'bg-indigo-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-pink-500'];
+  const [forecastMonths, setForecastMonths] = useState(12);
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-purple-400 mb-1">
-            Decision Intelligence
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Reports & Analytics
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
+            Financial Reports & Multi-Year Forecast
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Calculated from local records. No live market data, no invented comparisons.
+          <p className="text-xs sm:text-sm text-[#6b7280] mt-0.5">
+            Compound wealth projection models, savings rate analytics, and category breakdowns.
           </p>
         </div>
 
-        <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 self-start sm:self-auto">
-          Current Month Review
-        </span>
+        <button
+          onClick={() => window.print()}
+          className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-[#e5e7eb] text-[#374151] hover:bg-[#f9fafb] shadow-xs flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+        >
+          <Download className="w-3.5 h-3.5 text-[#6b7280]" />
+          <span>Print / Save PDF Report</span>
+        </button>
       </div>
 
-      {/* 4 Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Recorded Inflow
+      {/* Multi-Month Growth Projection Table */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e7eb] pb-4 mb-5">
+          <div>
+            <h2 className="text-base font-extrabold text-[#111827]">
+              Compound Growth Simulation
+            </h2>
+            <p className="text-xs text-[#6b7280]">
+              Projected net worth trajectory with monthly surplus ({formatCurrency(cashFlow.netSavings, currency)}/mo) at 7% real compounding.
+            </p>
           </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-400">
-            {formatMoney(snapshot.recordedIncome, currency)}
+
+          <div className="flex items-center gap-1.5">
+            {[6, 12, 24, 60].map((m) => (
+              <button
+                key={m}
+                onClick={() => setForecastMonths(m)}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors ${
+                  forecastMonths === m
+                    ? 'bg-[#5a42e8] text-white'
+                    : 'bg-[#f3f4f6] text-[#4b5563] hover:bg-[#e5e7eb]'
+                }`}
+              >
+                {m >= 12 ? `${m / 12} yr` : `${m} mo`}
+              </button>
+            ))}
           </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Recorded this month</div>
         </div>
 
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Monthly Expenses
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-white">
-            {formatMoney(snapshot.monthlyExpenses, currency)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Excludes transfers</div>
-        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-[#f9fafb] border-b border-[#e5e7eb] text-[#6b7280] font-semibold">
+                <th className="p-3">Timeline</th>
+                <th className="p-3">Cumulative Contributed</th>
+                <th className="p-3">Estimated Investment Yield (7%)</th>
+                <th className="p-3 font-bold text-[#111827]">Projected Asset Net</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#e5e7eb]">
+              {[1, 3, 6, 12, 24, 36, 60]
+                .filter((m) => m <= forecastMonths)
+                .map((m) => {
+                  const monthlyFlow = Math.max(0, cashFlow.netSavings);
+                  const contributed = monthlyFlow * m;
+                  const monthlyRate = 0.07 / 12;
+                  // Future value of annuity: PMT * (((1 + r)^n - 1) / r)
+                  const fv = monthlyFlow * ((Math.pow(1 + monthlyRate, m) - 1) / monthlyRate);
+                  const yieldEarned = Math.max(0, fv - contributed);
 
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Debt Reduction
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-purple-400">
-            {formatMoney(snapshot.monthlyDebtPayments, currency)}
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">Recorded debt payments</div>
-        </div>
-
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-4 shadow-xl">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-            Surplus Rate
-          </div>
-          <div className="text-xl sm:text-2xl font-black text-emerald-400">
-            {surplusRate}%
-          </div>
-          <div className="text-[10px] text-slate-400 mt-0.5">{formatMoney(Math.max(0, surplus), currency)} net surplus</div>
+                  return (
+                    <tr key={m} className="hover:bg-[#f9fafb] transition-colors">
+                      <td className="p-3 font-bold text-[#111827]">
+                        {m < 12 ? `Month ${m}` : `Year ${m / 12} (${m} months)`}
+                      </td>
+                      <td className="p-3 text-[#4b5563]">
+                        {formatCurrency(contributed, currency)}
+                      </td>
+                      <td className="p-3 text-[#059669] font-semibold">
+                        +{formatCurrency(yieldEarned, currency)}
+                      </td>
+                      <td className="p-3 font-extrabold text-[#5a42e8] text-sm">
+                        {formatCurrency(fv, currency)}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Grid: Spending Mix (7 cols) + Monthly Review (5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Spending Breakdown (7 cols) */}
-        <div className="lg:col-span-7 bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
-                Spending Mix
-              </span>
-              <h3 className="text-base font-bold text-white">Where money went this month</h3>
+      {/* Summary Scorecard */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+          <h3 className="text-sm font-bold text-[#111827] uppercase tracking-wider mb-4">
+            Cash Flow Health Metrics
+          </h3>
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between py-2 border-b border-[#f3f4f6]">
+              <span className="text-[#6b7280]">Total Monthly Inflow:</span>
+              <span className="font-bold text-[#111827]">{formatCurrency(cashFlow.totalIncome, currency)}</span>
             </div>
-            <span className="text-xs font-bold text-slate-400">
-              Total: {formatMoney(totalExpense, currency)}
-            </span>
+            <div className="flex justify-between py-2 border-b border-[#f3f4f6]">
+              <span className="text-[#6b7280]">Total Monthly Outflow:</span>
+              <span className="font-bold text-[#111827]">{formatCurrency(cashFlow.totalExpenses, currency)}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-[#f3f4f6]">
+              <span className="text-[#6b7280]">Net Savings Surplus:</span>
+              <span className={`font-extrabold ${cashFlow.netSavings >= 0 ? 'text-[#059669]' : 'text-[#dc2626]'}`}>
+                {formatCurrency(cashFlow.netSavings, currency)}
+              </span>
+            </div>
+            <div className="flex justify-between py-2 border-b border-[#f3f4f6]">
+              <span className="text-[#6b7280]">Current Savings Rate:</span>
+              <span className="font-bold text-[#111827]">{cashFlow.savingsRate.toFixed(1)}%</span>
+            </div>
+            <div className="flex justify-between py-2">
+              <span className="text-[#6b7280]">Composite Health Score:</span>
+              <span className="font-extrabold text-[#5a42e8]">{healthScore.score} / 100 ({healthScore.grade})</span>
+            </div>
           </div>
+        </div>
 
-          {categoryEntries.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs border border-dashed border-white/10 rounded-xl">
-              No expenses recorded in the current calendar month.
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+          <h3 className="text-sm font-bold text-[#111827] uppercase tracking-wider mb-4">
+            Spending Category Breakdown
+          </h3>
+          {transactions.length === 0 ? (
+            <div className="text-xs text-[#6b7280] py-8 text-center">
+              No transactions recorded to build category analytics.
             </div>
           ) : (
-            <div className="space-y-3 pt-2">
-              {categoryEntries.map(([category, amount], idx) => {
-                const pct = totalExpense > 0 ? (amount / totalExpense) * 100 : 0;
-                const barColor = colors[idx % colors.length];
-                return (
-                  <div key={category} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${barColor}`} />
-                        <span className="font-semibold text-slate-200">{category}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[11px] text-slate-400 font-mono">{pct.toFixed(1)}%</span>
-                        <span className="font-bold text-white">{formatMoney(amount, currency)}</span>
-                      </div>
-                    </div>
+            <div className="space-y-3">
+              {Array.from(new Set(transactions.filter((t) => t.type === 'EXPENSE').map((t) => t.category))).map((cat) => {
+                const totalInCat = transactions
+                  .filter((t) => t.type === 'EXPENSE' && t.category === cat)
+                  .reduce((s, t) => s + t.amount, 0);
+                const totalExp = cashFlow.totalExpenses || 1;
+                const pct = (totalInCat / totalExp) * 100;
 
-                    <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                        style={{ width: `${pct}%` }}
-                      />
+                return (
+                  <div key={cat} className="text-xs">
+                    <div className="flex justify-between font-semibold text-[#111827] mb-1">
+                      <span>{cat}</span>
+                      <span>{formatCurrency(totalInCat, currency)} ({pct.toFixed(0)}%)</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-[#f3f4f6] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#5a42e8] rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </div>
-
-        {/* Monthly Review Summary (5 cols) */}
-        <div className="lg:col-span-5 bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4 flex flex-col justify-between">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
-              Monthly Review
-            </span>
-            <h3 className="text-base font-bold text-white mb-4">Financial Summary</h3>
-
-            <div className="space-y-3 text-xs divide-y divide-white/5">
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-slate-400">Top Expense Category:</span>
-                <span className="font-bold text-white">
-                  {categoryEntries[0] ? `${categoryEntries[0][0]} (${formatMoney(categoryEntries[0][1], currency)})` : 'None'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-slate-400">Largest Single Expense:</span>
-                <span className="font-bold text-white">
-                  {largestExpense ? `${largestExpense.description} (${formatMoney(largestExpense.amount, currency)})` : 'None'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-slate-400">Current Net Worth:</span>
-                <span className="font-bold text-purple-300">{formatMoney(snapshot.netWorth, currency)}</span>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-slate-400">Active Goals Pace:</span>
-                <span className="font-bold text-emerald-400">
-                  {formatMoney(snapshot.plannedGoalContributions, currency)} / month
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-500/20 text-xs text-slate-300">
-            <div className="text-[10px] font-bold uppercase text-purple-300 mb-1">FINORA Insight</div>
-            <p className="leading-relaxed">“{brainState.recommendations[0]?.message}”</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 6-Pillar Health Score Breakdown */}
-      <div className="bg-[#131625] border border-white/10 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
-            Health Breakdown
-          </span>
-          <h3 className="text-base font-bold text-white">Internal Financial Pillars</h3>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {Object.entries(health.factors).map(([factor, score]) => (
-            <div key={factor} className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
-              <div className="text-[10px] text-slate-400 uppercase font-semibold">{factor}</div>
-              <div className="text-xl font-extrabold text-white">{score} <span className="text-[10px] text-slate-500 font-normal">/ 100</span></div>
-              <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    score >= 80 ? 'bg-emerald-400' : score >= 60 ? 'bg-purple-400' : 'bg-amber-400'
-                  }`}
-                  style={{ width: `${score}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2 text-[11px] text-slate-400 pt-1">
-          <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-          <span>This is an educational FINORA score, not a credit score or professional financial rating.</span>
         </div>
       </div>
     </div>

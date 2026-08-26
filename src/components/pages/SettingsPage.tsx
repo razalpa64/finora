@@ -1,451 +1,306 @@
 import React, { useState } from 'react';
 import {
   Settings,
-  Database,
   Cloud,
-  Wallet,
+  Database,
+  User,
   Shield,
-  Download,
-  Upload,
   RefreshCw,
-  Plus,
-  Trash2,
-  CheckCircle2,
   Copy,
   Check,
-  Coins,
-  Sun,
-  Moon,
-  AlertTriangle,
+  Globe,
+  Sliders,
+  CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatMoney, SUPPORTED_CURRENCIES } from '../../services/currency';
-import { SUPABASE_SQL_SCHEMA_SCRIPT, testSupabaseConnection } from '../../services/supabase';
+import { SUPPORTED_CURRENCIES } from '../../services/currency';
 
 export const SettingsPage: React.FC = () => {
   const {
-    supabaseConfig,
-    updateSupabaseConfig,
-    syncToSupabase,
-    accounts,
-    deleteAccount,
-    openQuickAdd,
+    currentProfile,
     currency,
     setCurrency,
-    theme,
-    setTheme,
-    exportBackup,
-    importBackup,
-    resetToEmptyWorkspace,
-    loadDemoData,
-    showToast,
+    supabaseConfig,
+    setSupabaseConfig,
+    syncToSupabase,
+    loadFromSupabase,
+    addToast,
+    logout,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'supabase' | 'accounts' | 'appearance' | 'backup'>('supabase');
-
-  // Supabase form
   const [supabaseUrl, setSupabaseUrl] = useState(supabaseConfig.url || '');
-  const [supabaseKey, setSupabaseKey] = useState(supabaseConfig.anonKey || '');
-  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [isSchemaModalOpen, setIsSchemaModalOpen] = useState(false);
-  const [copiedSchema, setCopiedSchema] = useState(false);
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(supabaseConfig.anonKey || '');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
-  const handleSaveSupabase = async (e: React.FormEvent) => {
+  const handleSaveSupabase = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsTestingSupabase(true);
-    setTestResult(null);
-
-    const res = await testSupabaseConnection(supabaseUrl, supabaseKey);
-    setTestResult(res);
-    setIsTestingSupabase(false);
-
-    if (res.success) {
-      updateSupabaseConfig({
-        url: supabaseUrl,
-        anonKey: supabaseKey,
-        connected: true,
-      });
-      showToast('Supabase settings saved and verified!');
-    }
+    setSupabaseConfig({
+      url: supabaseUrl.trim(),
+      anonKey: supabaseAnonKey.trim(),
+      autoSync: true,
+    });
+    addToast({
+      title: 'Supabase Configured',
+      message: 'Supabase credentials saved successfully.',
+      type: 'SUCCESS',
+    });
   };
 
-  const handleCopySchema = () => {
-    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA_SCRIPT);
-    setCopiedSchema(true);
-    setTimeout(() => setCopiedSchema(false), 2000);
-    showToast('SQL schema copied to clipboard!');
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await syncToSupabase();
+    setIsSyncing(false);
   };
 
-  const handleExportBackup = () => {
-    const jsonStr = exportBackup();
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `finora_os_backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Backup exported successfully');
-  };
+  const sqlSchemaText = `-- FINORA Supabase Schema
+create table if not exists profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users on delete cascade,
+  email text not null,
+  name text not null,
+  currency text default 'USD',
+  created_at timestamptz default now()
+);
 
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        importBackup(content);
-      }
-    };
-    reader.readAsText(file);
+create table if not exists transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users on delete cascade,
+  amount numeric not null,
+  category text not null,
+  type text not null,
+  budget_category text,
+  description text,
+  date text not null,
+  created_at timestamptz default now()
+);
+
+create table if not exists income_sources (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users on delete cascade,
+  name text not null,
+  amount numeric not null,
+  type text not null,
+  frequency text not null,
+  is_guaranteed boolean default true,
+  notes text,
+  created_at timestamptz default now()
+);
+
+create table if not exists debts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users on delete cascade,
+  name text not null,
+  current_balance numeric not null,
+  interest_rate numeric not null,
+  minimum_payment numeric not null,
+  category text not null,
+  due_date_day integer default 1,
+  created_at timestamptz default now()
+);
+
+create table if not exists goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users on delete cascade,
+  name text not null,
+  target_amount numeric not null,
+  current_amount numeric default 0,
+  target_date text,
+  category text not null,
+  priority text not null,
+  created_at timestamptz default now()
+);`;
+
+  const copySql = () => {
+    navigator.clipboard.writeText(sqlSchemaText);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2500);
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-purple-400 mb-1">
-            System Control
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Settings & Workspace
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Manage cloud Supabase database, asset wallets, backups, and appearance.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
+          Settings & Cloud Synchronization
+        </h1>
+        <p className="text-xs sm:text-sm text-[#6b7280] mt-0.5">
+          Configure Supabase PostgreSQL connection, authentication, default currency, and profile preferences.
+        </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-white/10 overflow-x-auto scrollbar-none">
-        {[
-          { id: 'supabase' as const, label: 'Supabase Cloud Database', icon: Cloud },
-          { id: 'accounts' as const, label: 'Accounts & Wallets', icon: Wallet },
-          { id: 'appearance' as const, label: 'Currency & Appearance', icon: Sun },
-          { id: 'backup' as const, label: 'Backup & Security', icon: Shield },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 px-4 py-3 text-xs font-semibold rounded-t-xl border-b-2 transition-all shrink-0
-                ${
-                  isActive
-                    ? 'border-purple-500 text-purple-300 bg-white/[0.04]'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
-                }
-              `}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* TAB 1: SUPABASE CONFIGURATION */}
-      {activeTab === 'supabase' && (
-        <div className="space-y-5">
-          <div className="bg-[#131625] border border-white/10 rounded-2xl p-6 shadow-xl space-y-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white">Supabase PostgreSQL Connection</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Synchronize your accounts, transactions, debts, and goals to your own private Supabase project.
-                </p>
-              </div>
-              <span
-                className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${
-                  supabaseConfig.connected
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${supabaseConfig.connected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                <span>{supabaseConfig.connected ? 'Connected' : 'Offline / Standalone'}</span>
-              </span>
+      {/* Supabase Cloud Connection Settings */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+        <div className="flex items-center justify-between border-b border-[#e5e7eb] pb-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[#f3f1fc] text-[#5a42e8] flex items-center justify-center">
+              <Cloud className="w-4 h-4" />
             </div>
-
-            <form onSubmit={handleSaveSupabase} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Supabase Project URL</label>
-                <input
-                  type="url"
-                  required
-                  value={supabaseUrl}
-                  onChange={(e) => setSupabaseUrl(e.target.value)}
-                  placeholder="https://xyzprojectid.supabase.co"
-                  className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Supabase Anon Public API Key</label>
-                <input
-                  type="password"
-                  required
-                  value={supabaseKey}
-                  onChange={(e) => setSupabaseKey(e.target.value)}
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {testResult && (
-                <div
-                  className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
-                    testResult.success
-                      ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
-                      : 'bg-rose-950/30 border-rose-500/30 text-rose-200'
-                  }`}
-                >
-                  {testResult.message}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSchemaModalOpen(true)}
-                  className="text-xs font-semibold text-purple-400 hover:text-purple-300 flex items-center gap-1.5"
-                >
-                  <Database className="w-3.5 h-3.5" />
-                  <span>View Supabase SQL Schema</span>
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="submit"
-                    disabled={isTestingSupabase}
-                    className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 transition-all flex items-center gap-2"
-                  >
-                    {isTestingSupabase && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                    <span>Test & Save Connection</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => syncToSupabase()}
-                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 transition-colors flex items-center gap-1.5"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Sync Now</span>
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/20 text-xs text-slate-300 space-y-1">
-            <div className="font-bold text-white flex items-center gap-2">
-              <Shield className="w-4 h-4 text-purple-400" />
-              <span>Offline-First Architecture</span>
-            </div>
-            <p className="leading-relaxed">
-              FINORA is offline-first: all calculations, transactions, and state changes work instantly in memory and local storage. When you connect Supabase, data is backed up to your PostgreSQL database with Row Level Security (RLS).
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: ACCOUNTS & WALLETS */}
-      {activeTab === 'accounts' && (
-        <div className="bg-[#131625] border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-white">Asset Accounts & Wallets</h3>
-              <p className="text-xs text-slate-400">Total balance: {formatMoney(accounts.reduce((a, b) => a + b.balance, 0), currency)}</p>
-            </div>
-            <button
-              onClick={() => openQuickAdd('account')}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-600/30 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Account</span>
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {accounts.map((a) => (
-              <div
-                key={a.id}
-                className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3"
-              >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-white text-sm">{a.name}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-slate-300 uppercase">
-                      {a.type}
-                    </span>
-                    {a.emergencyFund && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        Emergency Reserve
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-slate-400">Created on {a.createdAt.split('T')[0]}</div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <span className="font-black text-white text-base">{formatMoney(a.balance, currency)}</span>
-                  <button
-                    onClick={() => deleteAccount(a.id)}
-                    className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
-                    title="Delete account"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: CURRENCY & APPEARANCE */}
-      {activeTab === 'appearance' && (
-        <div className="space-y-5">
-          {/* Currency selection */}
-          <div className="bg-[#131625] border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-white">Display Currency</h3>
-              <p className="text-xs text-slate-400">Select standard currency symbol for formatting values.</p>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {Object.values(SUPPORTED_CURRENCIES).map((c) => (
-                <button
-                  key={c.code}
-                  onClick={() => setCurrency(c.code)}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
-                    currency === c.code
-                      ? 'bg-purple-600/20 border-purple-500/50 text-white shadow-md shadow-purple-600/20'
-                      : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:bg-white/[0.04]'
-                  }`}
-                >
-                  <div className="text-base font-black text-white">{c.symbol} {c.code}</div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">{c.name}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Theme selection */}
-          <div className="bg-[#131625] border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-white">Visual Design Theme</h3>
-              <p className="text-xs text-slate-400">Choose between dark fintech, midnight OLED, and daylight themes.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                { id: 'dark' as const, name: 'Dark Fintech (Default)', desc: 'Slate navy background with purple accents' },
-                { id: 'light' as const, name: 'Daylight Light', desc: 'Crisp light fintech interface' },
-                { id: 'midnight' as const, name: 'Midnight OLED', desc: 'True pitch black contrast' },
-              ].map((th) => (
-                <button
-                  key={th.id}
-                  onClick={() => setTheme(th.id)}
-                  className={`p-4 rounded-xl border text-left transition-all ${
-                    theme === th.id
-                      ? 'bg-purple-600/20 border-purple-500/50 text-white shadow-md shadow-purple-600/20'
-                      : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:bg-white/[0.04]'
-                  }`}
-                >
-                  <div className="font-bold text-white text-sm">{th.name}</div>
-                  <div className="text-[11px] text-slate-400 mt-1">{th.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: BACKUP & SECURITY */}
-      {activeTab === 'backup' && (
-        <div className="space-y-5">
-          <div className="bg-[#131625] border border-white/10 rounded-2xl p-6 shadow-xl space-y-4">
-            <div>
-              <h3 className="text-base font-bold text-white">Local Workspace Backup</h3>
-              <p className="text-xs text-slate-400">
-                Export and restore a full encrypted snapshot of your profiles and records.
+              <h2 className="text-base font-extrabold text-[#111827]">
+                Supabase Database Engine
+              </h2>
+              <p className="text-xs text-[#6b7280]">
+                Connected directly to your Supabase project instance.
               </p>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={handleExportBackup}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export JSON Backup</span>
-              </button>
-
-              <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/10 transition-colors cursor-pointer">
-                <Upload className="w-4 h-4" />
-                <span>Restore JSON Backup</span>
-                <input type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-              </label>
-
-              <button
-                onClick={loadDemoData}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/20 transition-colors"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Reload Sample Workspace</span>
-              </button>
-
-              <button
-                onClick={resetToEmptyWorkspace}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/20 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Clear & Empty Workspace</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]">
+              <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+              Cloud Sync Ready
+            </span>
           </div>
         </div>
-      )}
 
-      {/* View Supabase SQL Schema Modal */}
-      {isSchemaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-2xl bg-[#131726] border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
-              <div>
-                <h3 className="text-base font-bold text-white">Supabase PostgreSQL Schema Script</h3>
-                <p className="text-xs text-slate-400">Copy and run this in your Supabase SQL Editor.</p>
-              </div>
+        <form onSubmit={handleSaveSupabase} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-[#374151] mb-1">
+              Supabase Project URL
+            </label>
+            <input
+              type="text"
+              required
+              value={supabaseUrl}
+              onChange={(e) => setSupabaseUrl(e.target.value)}
+              placeholder="https://your-project-id.supabase.co"
+              className="w-full px-3.5 py-2 text-xs font-mono border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#374151] mb-1">
+              Supabase Publishable / Anon Key
+            </label>
+            <input
+              type="password"
+              required
+              value={supabaseAnonKey}
+              onChange={(e) => setSupabaseAnonKey(e.target.value)}
+              placeholder="sb_publishable_... or anon JWT key"
+              className="w-full px-3.5 py-2 text-xs font-mono border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] outline-none"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setIsSchemaModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5"
+                type="button"
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-white border border-[#d1d5db] text-[#374151] hover:bg-[#f9fafb] flex items-center gap-2 transition-colors disabled:opacity-50"
               >
-                ✕
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Pushing to Supabase…' : 'Force Sync Now'}</span>
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-black/60 rounded-xl border border-white/5 font-mono text-[11px] text-slate-300 whitespace-pre scrollbar-thin">
-              {SUPABASE_SQL_SCHEMA_SCRIPT}
-            </div>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-bold bg-[#5a42e8] text-white rounded-xl hover:bg-[#4a34db] transition-colors"
+            >
+              Save Credentials
+            </button>
+          </div>
+        </form>
+      </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/5 mt-4">
-              <button
-                onClick={handleCopySchema}
-                className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 transition-all"
-              >
-                {copiedSchema ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedSchema ? 'Copied to Clipboard!' : 'Copy SQL Script'}</span>
-              </button>
+      {/* Preferences: Currency & Profile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Currency Switcher */}
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-[#f3f1fc] text-[#5a42e8] flex items-center justify-center">
+              <Globe className="w-4 h-4" />
+            </div>
+            <h2 className="text-base font-extrabold text-[#111827]">
+              Default Display Currency
+            </h2>
+          </div>
+
+          <p className="text-xs text-[#6b7280] mb-4">
+            Select the currency symbol and format applied across all calculators and tables.
+          </p>
+
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="w-full px-3.5 py-2.5 text-xs font-bold border border-[#d1d5db] rounded-xl bg-white focus:border-[#5a42e8] outline-none"
+          >
+            {Object.values(SUPPORTED_CURRENCIES).map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.symbol} — {c.name} ({c.code})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Current User Info */}
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-[#f3f1fc] text-[#5a42e8] flex items-center justify-center">
+              <User className="w-4 h-4" />
+            </div>
+            <h2 className="text-base font-extrabold text-[#111827]">
+              Current Account
+            </h2>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div className="flex justify-between py-1.5 border-b border-[#f3f4f6]">
+              <span className="text-[#6b7280]">Account Name:</span>
+              <span className="font-bold text-[#111827]">{currentProfile?.name || 'Local User'}</span>
+            </div>
+            <div className="flex justify-between py-1.5 border-b border-[#f3f4f6]">
+              <span className="text-[#6b7280]">Email:</span>
+              <span className="font-bold text-[#111827]">{currentProfile?.email || 'user@finora.app'}</span>
+            </div>
+            <div className="flex justify-between py-1.5">
+              <span className="text-[#6b7280]">Profile ID:</span>
+              <span className="font-mono text-[11px] text-[#6b7280]">{currentProfile?.id || 'default-user'}</span>
             </div>
           </div>
+
+          <button
+            onClick={logout}
+            className="mt-4 w-full py-2 text-xs font-bold text-[#dc2626] bg-[#fee2e2] hover:bg-[#fecaca] rounded-xl transition-colors"
+          >
+            Sign Out of Profile
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* SQL Schema Viewer */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-xs">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#f3f1fc] text-[#5a42e8] flex items-center justify-center">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-[#111827]">
+                PostgreSQL Schema Reference
+              </h2>
+              <p className="text-xs text-[#6b7280]">
+                SQL DDL tables configured for your Supabase SQL Editor.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={copySql}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#f3f4f6] hover:bg-[#e5e7eb] text-[#374151] flex items-center gap-1.5 transition-colors"
+          >
+            {copiedSql ? <Check className="w-3.5 h-3.5 text-[#10b981]" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedSql ? 'Copied' : 'Copy SQL'}</span>
+          </button>
+        </div>
+
+        <pre className="p-4 bg-[#101322] text-[#e2e8f0] rounded-xl text-xs font-mono overflow-x-auto max-h-64 scrollbar-thin">
+          {sqlSchemaText}
+        </pre>
+      </div>
     </div>
   );
 };
