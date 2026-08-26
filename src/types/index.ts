@@ -127,6 +127,10 @@ export interface Budget {
   updatedAt: string;
 }
 
+export type BudgetCategory = 'NEEDS' | 'WANTS' | 'SAVINGS' | string;
+
+export type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'URGENCY' | 'HYBRID' | 'PERSONAL';
+
 export interface Investment {
   id: string;
   userId: string;

@@ -84,7 +84,7 @@ export interface DebtPayoffPlanMetrics {
   monthsToPayoff: number;
 }
 
-export type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'URGENCY' | 'HYBRID';
+export type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'URGENCY' | 'HYBRID' | 'PERSONAL';
 
 export interface AppContextType {
   // Navigation & UI
