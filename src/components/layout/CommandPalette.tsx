@@ -5,21 +5,19 @@ import {
   TrendingUp,
   ArrowLeftRight,
   PieChart,
-  CreditCard,
+  ShieldAlert,
   Target,
-  CalendarDays,
+  Calendar,
   BarChart3,
-  Brain,
+  BrainCircuit,
   Settings,
   Plus,
-  Cloud,
-  Calculator,
-  Sparkles,
   ArrowRight,
   X,
+  CreditCard,
 } from 'lucide-react';
 import { AppPage, useApp } from '../../context/AppContext';
-import { formatMoney } from '../../services/currency';
+import { formatCurrency } from '../../services/currency';
 
 interface CommandOption {
   id: string;
@@ -66,63 +64,44 @@ export const CommandPalette: React.FC = () => {
   const baseOptions: CommandOption[] = [
     // Navigation
     { id: 'nav-overview', title: 'Go to Overview', subtitle: 'Financial Command Center', icon: LayoutDashboard, category: 'Navigation', action: () => navigateTo('overview') },
-    { id: 'nav-income', title: 'Go to Income Center', subtitle: 'Recurring income and receipts', icon: TrendingUp, category: 'Navigation', action: () => navigateTo('income') },
-    { id: 'nav-tx', title: 'Go to Transactions', subtitle: 'Money movement ledger', icon: ArrowLeftRight, category: 'Navigation', action: () => navigateTo('transactions') },
-    { id: 'nav-plan', title: 'Go to Monthly Plan', subtitle: 'Priority-based budget allocation', icon: PieChart, category: 'Navigation', action: () => navigateTo('plan') },
-    { id: 'nav-debt', title: 'Go to Debt Center', subtitle: 'Liabilities, strategies & EMI', icon: CreditCard, category: 'Navigation', action: () => navigateTo('debt') },
-    { id: 'nav-goals', title: 'Go to Goals', subtitle: 'Purposeful savings milestones', icon: Target, category: 'Navigation', action: () => navigateTo('goals') },
-    { id: 'nav-calendar', title: 'Go to Bills & Calendar', subtitle: 'Timeline and subscriptions', icon: CalendarDays, category: 'Navigation', action: () => navigateTo('calendar') },
-    { id: 'nav-reports', title: 'Go to Reports & Analytics', subtitle: 'Spending mix and health score', icon: BarChart3, category: 'Navigation', action: () => navigateTo('reports') },
-    { id: 'nav-brain', title: 'Ask FINORA Brain AI', subtitle: 'Deterministic verified intelligence', icon: Brain, category: 'Navigation', action: () => navigateTo('brain') },
-    { id: 'nav-settings', title: 'Go to Settings & Supabase', subtitle: 'Cloud sync & workspace preferences', icon: Settings, category: 'Navigation', action: () => navigateTo('settings') },
+    { id: 'nav-income', title: 'Go to Income Streams', subtitle: 'Recurring income and inflows', icon: TrendingUp, category: 'Navigation', action: () => navigateTo('income') },
+    { id: 'nav-tx', title: 'Go to Transactions Ledger', subtitle: 'Money movement audit log', icon: ArrowLeftRight, category: 'Navigation', action: () => navigateTo('transactions') },
+    { id: 'nav-plan', title: 'Go to Plan & Budget', subtitle: '50/30/20 allocation rules', icon: PieChart, category: 'Navigation', action: () => navigateTo('plan') },
+    { id: 'nav-debt', title: 'Go to Debt Elimination', subtitle: 'Avalanche & Snowball strategies', icon: ShieldAlert, category: 'Navigation', action: () => navigateTo('debt') },
+    { id: 'nav-goals', title: 'Go to Goals', subtitle: 'Target savings milestones', icon: Target, category: 'Navigation', action: () => navigateTo('goals') },
+    { id: 'nav-calendar', title: 'Go to Cash Flow Calendar', subtitle: 'Due dates and timelines', icon: Calendar, category: 'Navigation', action: () => navigateTo('calendar') },
+    { id: 'nav-reports', title: 'Go to Reports & Forecasting', subtitle: 'Compound growth & metrics', icon: BarChart3, category: 'Navigation', action: () => navigateTo('reports') },
+    { id: 'nav-brain', title: 'Ask FINORA Brain AI', subtitle: 'Deterministic verified intelligence', icon: BrainCircuit, category: 'Navigation', action: () => navigateTo('brain') },
+    { id: 'nav-settings', title: 'Go to Settings & Supabase', subtitle: 'Database sync & preferences', icon: Settings, category: 'Navigation', action: () => navigateTo('settings') },
 
     // Actions
-    { id: 'act-add-tx', title: 'Add Transaction', subtitle: 'Record expense, income or transfer', icon: Plus, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('transaction'); } },
-    { id: 'act-add-inc', title: 'Add Recurring Income', subtitle: 'Configure new salary or income stream', icon: TrendingUp, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('income'); } },
-    { id: 'act-add-debt', title: 'Add Debt or Loan', subtitle: 'Track new liability', icon: CreditCard, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('debt'); } },
-    { id: 'act-add-goal', title: 'Create Savings Goal', subtitle: 'Plan a target savings milestone', icon: Target, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('goal'); } },
-    { id: 'act-add-bill', title: 'Add Bill or Subscription', subtitle: 'Track payment due dates', icon: CalendarDays, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('bill'); } },
+    { id: 'act-add-tx', title: 'Add Transaction Expense', subtitle: 'Record an outflow or bill payment', icon: Plus, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('EXPENSE'); } },
+    { id: 'act-add-inc', title: 'Add Income Source', subtitle: 'Configure salary or side revenue', icon: TrendingUp, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('INCOME'); } },
+    { id: 'act-add-debt', title: 'Add Debt Liability', subtitle: 'Track a loan or credit balance', icon: ShieldAlert, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('DEBT'); } },
+    { id: 'act-add-goal', title: 'Create Savings Goal', subtitle: 'Plan a target savings milestone', icon: Target, category: 'Actions', action: () => { setIsCommandPaletteOpen(false); openQuickAdd('GOAL'); } },
 
     // Brain Queries
-    { id: 'bq-safe', title: 'Calculate Safe to Spend Today', subtitle: 'Conservative daily envelope', icon: Sparkles, category: 'Brain Queries', action: () => navigateTo('brain') },
-    { id: 'bq-afford', title: 'Check Affordability of a Purchase', subtitle: 'Test against flexible capacity', icon: Sparkles, category: 'Brain Queries', action: () => navigateTo('brain') },
-    { id: 'bq-debt', title: 'Who Should I Pay First?', subtitle: 'Calculate Avalanche & Hybrid priority', icon: Sparkles, category: 'Brain Queries', action: () => navigateTo('debt') },
-    { id: 'bq-emi', title: 'Model Loan & Prepayment in EMI Engine', subtitle: 'Reduce tenure vs reduce EMI', icon: Calculator, category: 'Brain Queries', action: () => navigateTo('debt') },
+    { id: 'bq-safe', title: 'Calculate Safe to Spend Today', subtitle: 'Conservative daily envelope', icon: BrainCircuit, category: 'Brain Queries', action: () => navigateTo('brain') },
+    { id: 'bq-debt', title: 'Who Should I Pay First?', subtitle: 'Calculate Avalanche & Hybrid priority', icon: ShieldAlert, category: 'Brain Queries', action: () => navigateTo('debt') },
   ];
 
   // Records
   const recordOptions: CommandOption[] = [
-    ...accounts.map((a) => ({
-      id: `acc-${a.id}`,
-      title: `Account: ${a.name}`,
-      subtitle: `${a.type} · Balance: ${formatMoney(a.balance, currency)}`,
-      icon: CreditCard,
-      category: 'Records' as const,
-      action: () => navigateTo('settings'),
-    })),
     ...debts.map((d) => ({
       id: `debt-${d.id}`,
       title: `Debt: ${d.name}`,
-      subtitle: `Remaining: ${formatMoney(d.remainingAmount, currency)} (${d.interestRate}% interest)`,
-      icon: CreditCard,
+      subtitle: `Balance: ${formatCurrency(d.currentBalance, currency)} (${d.interestRate}% interest)`,
+      icon: ShieldAlert,
       category: 'Records' as const,
       action: () => navigateTo('debt'),
     })),
     ...goals.map((g) => ({
       id: `goal-${g.id}`,
       title: `Goal: ${g.name}`,
-      subtitle: `${formatMoney(g.currentAmount, currency)} of ${formatMoney(g.targetAmount, currency)}`,
+      subtitle: `${formatCurrency(g.currentAmount, currency)} of ${formatCurrency(g.targetAmount, currency)}`,
       icon: Target,
       category: 'Records' as const,
       action: () => navigateTo('goals'),
-    })),
-    ...bills.map((b) => ({
-      id: `bill-${b.id}`,
-      title: `Bill: ${b.name}`,
-      subtitle: `Due ${b.dueDate} · ${formatMoney(b.amount, currency)} (${b.paid ? 'Paid' : 'Unpaid'})`,
-      icon: CalendarDays,
-      category: 'Records' as const,
-      action: () => navigateTo('calendar'),
     })),
   ];
 
@@ -135,7 +114,7 @@ export const CommandPalette: React.FC = () => {
           opt.subtitle?.toLowerCase().includes(query.toLowerCase()) ||
           opt.category.toLowerCase().includes(query.toLowerCase())
       )
-    : allOptions.slice(0, 10);
+    : allOptions.slice(0, 8);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -155,16 +134,16 @@ export const CommandPalette: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/50 backdrop-blur-xs animate-fade-in">
       <div
         className="fixed inset-0"
         onClick={() => setIsCommandPaletteOpen(false)}
       />
 
-      <div className="relative w-full max-w-2xl bg-[#131625] border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-2xl flex flex-col max-h-[80vh]">
+      <div className="relative w-full max-w-xl bg-white border border-[#e5e7eb] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[75vh]">
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-white/10 gap-3">
-          <Search className="w-5 h-5 text-purple-400 shrink-0" />
+        <div className="flex items-center px-4 py-3.5 border-b border-[#e5e7eb] gap-3 bg-[#fcfdfe]">
+          <Search className="w-4 h-4 text-[#5a42e8] shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -175,14 +154,14 @@ export const CommandPalette: React.FC = () => {
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type a command, query, or record name…"
-            className="w-full bg-transparent text-white text-sm focus:outline-none placeholder:text-slate-500"
+            className="w-full bg-transparent text-[#111827] text-xs font-medium focus:outline-none placeholder:text-[#9ca3af]"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="p-1 text-slate-500 hover:text-white rounded">
-              <X className="w-4 h-4" />
+            <button onClick={() => setQuery('')} className="p-1 text-[#9ca3af] hover:text-[#111827] rounded">
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
-          <kbd className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-mono text-slate-400 border border-white/10">
+          <kbd className="px-1.5 py-0.5 rounded bg-[#f3f4f6] text-[10px] font-mono text-[#6b7280] border border-[#e5e7eb]">
             ESC
           </kbd>
         </div>
@@ -190,8 +169,8 @@ export const CommandPalette: React.FC = () => {
         {/* Results List */}
         <div className="overflow-y-auto p-2 space-y-1 flex-1 scrollbar-thin">
           {filtered.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-xs">
-              No matching commands or records found for <span className="text-purple-300">"{query}"</span>.
+            <div className="p-8 text-center text-[#6b7280] text-xs">
+              No matching commands or records found for <span className="text-[#5a42e8] font-bold">"{query}"</span>.
             </div>
           ) : (
             filtered.map((item, index) => {
@@ -203,32 +182,32 @@ export const CommandPalette: React.FC = () => {
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={`
-                    flex items-center justify-between p-3 rounded-xl cursor-pointer text-xs transition-colors
+                    flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition-colors
                     ${
                       isSelected
-                        ? 'bg-purple-600/20 text-white border border-purple-500/30'
-                        : 'text-slate-300 hover:bg-white/[0.04] border border-transparent'
+                        ? 'bg-[#f3f1fc] text-[#111827] border border-[#e9e5f8]'
+                        : 'text-[#4b5563] hover:bg-[#f9fafb] border border-transparent'
                     }
                   `}
                 >
-                  <div className="flex items-center gap-3 truncate">
+                  <div className="flex items-center gap-2.5 truncate">
                     <div
-                      className={`p-2 rounded-lg shrink-0 ${
-                        isSelected ? 'bg-purple-500 text-white' : 'bg-white/5 text-purple-400'
+                      className={`p-1.5 rounded-lg shrink-0 ${
+                        isSelected ? 'bg-[#5a42e8] text-white' : 'bg-[#f3f4f6] text-[#5a42e8]'
                       }`}
                     >
-                      <Icon className="w-4 h-4" />
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
                     <div className="truncate">
-                      <div className="font-semibold text-slate-100">{item.title}</div>
-                      {item.subtitle && <div className="text-[11px] text-slate-400 truncate">{item.subtitle}</div>}
+                      <div className="font-bold text-[#111827]">{item.title}</div>
+                      {item.subtitle && <div className="text-[11px] text-[#6b7280] truncate">{item.subtitle}</div>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-slate-400">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#f3f4f6] text-[#6b7280]">
                       {item.category}
                     </span>
-                    {isSelected && <ArrowRight className="w-3.5 h-3.5 text-purple-400" />}
+                    {isSelected && <ArrowRight className="w-3.5 h-3.5 text-[#5a42e8]" />}
                   </div>
                 </div>
               );
@@ -237,16 +216,16 @@ export const CommandPalette: React.FC = () => {
         </div>
 
         {/* Footer shortcuts */}
-        <div className="px-4 py-2 bg-black/40 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="px-4 py-2 bg-[#f9fafb] border-t border-[#e5e7eb] flex items-center justify-between text-[10px] text-[#6b7280]">
           <div className="flex items-center gap-3">
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] mr-1">↑↓</kbd> Navigate
+              <kbd className="px-1 py-0.5 rounded bg-white border border-[#e5e7eb] font-mono mr-1">↑↓</kbd> Navigate
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] mr-1">↵</kbd> Select
+              <kbd className="px-1 py-0.5 rounded bg-white border border-[#e5e7eb] font-mono mr-1">↵</kbd> Select
             </span>
           </div>
-          <span>FINORA OS Intelligence</span>
+          <span className="font-semibold text-[#5a42e8]">FINORA OS Intelligence</span>
         </div>
       </div>
     </div>
