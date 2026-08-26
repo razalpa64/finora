@@ -1,0 +1,7 @@
+target/
+.idea/
+*.iml
+*.log
+data/*.lock.db
+data/*.trace.db
+backups/*.zip
