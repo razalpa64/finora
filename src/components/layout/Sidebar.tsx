@@ -1,20 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Wallet,
   ArrowLeftRight,
   PieChart,
-  ShieldAlert,
+  CreditCard,
   Target,
-  Calendar,
+  CalendarDays,
   BarChart3,
-  BrainCircuit,
+  Brain,
   Settings,
   X,
   LogOut,
-  Sparkles,
+  MoreVertical,
 } from 'lucide-react';
-import { useApp } from '../../context/AppContext';
+import { AppPage, useApp } from '../../context/AppContext';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -23,46 +23,45 @@ export const Sidebar: React.FC = () => {
     isMobileDrawerOpen,
     setIsMobileDrawerOpen,
     currentProfile,
-    healthScore,
     logout,
   } = useApp();
 
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'income', label: 'Income', icon: Wallet },
-    { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
-    { id: 'plan', label: 'Plan & Budget', icon: PieChart },
-    { id: 'debt', label: 'Debt Repayment', icon: ShieldAlert },
-    { id: 'goals', label: 'Goals', icon: Target },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'brain', label: 'FINORA Brain', icon: BrainCircuit, badge: 'AI' },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ] as const;
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-[#10b981] bg-[#ecfdf5] border-[#a7f3d0]';
-    if (score >= 60) return 'text-[#f59e0b] bg-[#fffbeb] border-[#fde68a]';
-    return 'text-[#ef4444] bg-[#fef2f2] border-[#fecaca]';
+  const commandCenterNav = [
+    { id: 'overview' as AppPage, label: 'Overview', icon: LayoutDashboard },
+    { id: 'income' as AppPage, label: 'Income', icon: Wallet },
+    { id: 'transactions' as AppPage, label: 'Transactions', icon: ArrowLeftRight },
+    { id: 'plan' as AppPage, label: 'Monthly plan', icon: PieChart },
+    { id: 'debt' as AppPage, label: 'Debt center', icon: CreditCard },
+    { id: 'goals' as AppPage, label: 'Goals', icon: Target },
+    { id: 'calendar' as AppPage, label: 'Bills & calendar', icon: CalendarDays },
+    { id: 'reports' as AppPage, label: 'Reports', icon: BarChart3 },
+  ];
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   };
 
   const navContent = (
-    <div className="flex flex-col h-full bg-[#101322] text-[#f8fafc] border-r border-[#1e2338]">
+    <div className="flex flex-col h-full bg-[#101322] text-[#989db1] border-r border-white/5 select-none">
       {/* Brand Header */}
-      <div className="p-5 flex items-center justify-between border-b border-[#1e2338]">
+      <div className="p-5 pb-6 flex items-center justify-between border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5a42e8] to-[#432ec7] flex items-center justify-center shadow-md">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#806cff] to-[#5a42e8] text-white flex items-center justify-center font-black text-base shadow-md shadow-[#5a42e8]/30">
+            F
           </div>
           <div>
-            <div className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
+            <div className="text-sm font-extrabold text-white tracking-wider">
               FINORA
-              <span className="text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded-full bg-[#5a42e8]/30 text-[#a594fd] border border-[#5a42e8]/40">
-                PRO
-              </span>
             </div>
-            <div className="text-[11px] text-[#94a3b8] font-medium">
-              Financial Command Center
+            <div className="text-[8px] font-bold text-[#6f748a] tracking-wider uppercase">
+              FINANCIAL OS
             </div>
           </div>
         </div>
@@ -70,95 +69,149 @@ export const Sidebar: React.FC = () => {
         {isMobileDrawerOpen && (
           <button
             onClick={() => setIsMobileDrawerOpen(false)}
-            className="p-1.5 rounded-lg text-[#94a3b8] hover:text-white hover:bg-[#1e2338] lg:hidden transition-colors"
+            className="p-1.5 rounded-lg text-[#868ba0] hover:text-white hover:bg-white/5 lg:hidden transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Nav List */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        <div className="px-3 pb-2 text-[10px] font-bold text-[#64748b] uppercase tracking-wider">
-          Navigation
-        </div>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = page === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                setPage(item.id);
-                setIsMobileDrawerOpen(false);
-              }}
-              className={`
-                w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group
-                ${
-                  isActive
-                    ? 'bg-[#5a42e8] text-white shadow-sm'
-                    : 'text-[#94a3b8] hover:text-white hover:bg-[#1a1e34]'
-                }
-              `}
-            >
-              <div className="flex items-center gap-3">
-                <Icon
-                  className={`w-4 h-4 transition-colors ${
-                    isActive ? 'text-white' : 'text-[#64748b] group-hover:text-white'
-                  }`}
-                />
-                <span>{item.label}</span>
-              </div>
-              {item.badge && (
-                <span
-                  className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : 'bg-[#5a42e8]/20 text-[#a594fd]'
-                  }`}
+      {/* Nav Section: COMMAND CENTER */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin">
+        <div>
+          <div className="px-3 pb-2 text-[9px] font-extrabold text-[#5d6278] tracking-widest uppercase">
+            COMMAND CENTER
+          </div>
+          <div className="space-y-1">
+            {commandCenterNav.map((item) => {
+              const Icon = item.icon;
+              const isActive = page === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setPage(item.id);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer
+                    ${
+                      isActive
+                        ? 'bg-[#765dff]/20 text-[#a998ff] font-bold'
+                        : 'text-[#989db1] hover:text-[#d9dbe5] hover:bg-white/[0.045]'
+                    }
+                  `}
                 >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  <Icon
+                    className={`w-4 h-4 transition-colors ${
+                      isActive ? 'text-[#8f7bff]' : 'text-[#868ba0]'
+                    }`}
+                  />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Nav Section: INTELLIGENCE */}
+        <div>
+          <div className="px-3 pb-2 text-[9px] font-extrabold text-[#5d6278] tracking-widest uppercase">
+            INTELLIGENCE
+          </div>
+          <button
+            onClick={() => {
+              setPage('brain');
+              setIsMobileDrawerOpen(false);
+            }}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left border cursor-pointer
+              ${
+                page === 'brain'
+                  ? 'bg-[#765dff]/20 text-[#a998ff] border-[#7f65ff]/30 font-bold'
+                  : 'text-[#989db1] hover:text-[#d9dbe5] hover:bg-white/[0.045] border-white/5'
+              }
+            `}
+          >
+            <Brain
+              className={`w-4 h-4 ${
+                page === 'brain' ? 'text-[#8f7bff]' : 'text-[#868ba0]'
+              }`}
+            />
+            <span>FINORA Brain</span>
+          </button>
+        </div>
       </div>
 
-      {/* User Profile Card */}
-      <div className="p-4 border-t border-[#1e2338] bg-[#0c0e1a]">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#1e2338] border border-[#2d334d] flex items-center justify-center font-bold text-xs text-white">
-              {currentProfile?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
-            <div className="truncate">
-              <div className="text-xs font-bold text-white truncate max-w-[110px]">
-                {currentProfile?.name || 'User'}
-              </div>
-              <div className="text-[10px] text-[#64748b] truncate max-w-[110px]">
-                {currentProfile?.email || 'user@finora.app'}
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getScoreColor(
-              healthScore.score
-            )}`}
-            title="Financial Health Score"
-          >
-            {healthScore.score}/100
-          </div>
-        </div>
-
+      {/* Footer: Settings & Profile Card */}
+      <div className="p-3 border-t border-white/5 space-y-2 bg-[#0c0e1a]">
         <button
-          onClick={logout}
-          className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-medium text-[#f87171] hover:bg-[#2d1519] border border-[#4c1d24]/50 transition-colors"
+          onClick={() => {
+            setPage('settings');
+            setIsMobileDrawerOpen(false);
+          }}
+          className={`
+            w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer
+            ${
+              page === 'settings'
+                ? 'bg-[#765dff]/20 text-[#a998ff] font-bold'
+                : 'text-[#989db1] hover:text-[#d9dbe5] hover:bg-white/[0.045]'
+            }
+          `}
         >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
+          <Settings
+            className={`w-4 h-4 ${
+              page === 'settings' ? 'text-[#8f7bff]' : 'text-[#868ba0]'
+            }`}
+          />
+          <span>Settings</span>
         </button>
+
+        {/* Profile Card */}
+        <div className="relative">
+          <div
+            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+            className="p-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] flex items-center justify-between transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 truncate">
+              <div className="w-7 h-7 rounded-lg bg-[#755cf3] text-white flex items-center justify-center font-extrabold text-[10px] shrink-0">
+                {getInitials(currentProfile?.displayName)}
+              </div>
+              <div className="truncate">
+                <div className="text-[11px] font-bold text-[#ececf3] truncate">
+                  {currentProfile?.displayName || 'User'}
+                </div>
+                <div className="text-[9px] text-[#6f7489] truncate">
+                  @{currentProfile?.username || 'user'}
+                </div>
+              </div>
+            </div>
+
+            <MoreVertical className="w-4 h-4 text-[#6f7489] shrink-0" />
+          </div>
+
+          {/* Profile Dropdown Popover */}
+          {isProfileMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
+              <div className="absolute bottom-full left-0 right-0 mb-2 z-50 bg-[#16192e] border border-white/10 rounded-xl shadow-2xl p-1.5 animate-fade-in space-y-1">
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8e8aa9] border-b border-white/5 truncate">
+                  {currentProfile?.displayName} · @{currentProfile?.username}
+                </div>
+                <button
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#f87171] hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Log out</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -166,7 +219,7 @@ export const Sidebar: React.FC = () => {
   return (
     <>
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col h-screen sticky top-0 shrink-0 z-20">
+      <aside className="hidden lg:flex w-58 flex-col h-screen sticky top-0 shrink-0 z-20">
         {navContent}
       </aside>
 
@@ -177,7 +230,7 @@ export const Sidebar: React.FC = () => {
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-slide-right">
+          <div className="relative w-64 max-w-[85vw] h-full shadow-2xl z-10 animate-slide-right">
             {navContent}
           </div>
         </div>

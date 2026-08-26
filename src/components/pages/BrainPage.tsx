@@ -1,145 +1,198 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  BrainCircuit,
+  Brain,
   Sparkles,
+  Send,
   ShieldCheck,
+  CheckCircle2,
   AlertTriangle,
   Lightbulb,
-  CheckCircle2,
-  TrendingUp,
+  ArrowRight,
   RefreshCw,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatCurrency } from '../../services/currency';
+import { askFinoraBrain } from '../../services/brain';
+import { BrainResponse } from '../../types';
 
 export const BrainPage: React.FC = () => {
-  const { brainState, healthScore, cashFlow, budgetAnalysis, currency } = useApp();
+  const { brainState, currency, healthScore, cashFlow } = useApp();
+
+  const [question, setQuestion] = useState('');
+  const [history, setHistory] = useState<Array<{ q: string; response: BrainResponse }>>([
+    {
+      q: 'What is safe to spend today?',
+      response: askFinoraBrain('What is safe to spend today?', brainState, currency),
+    },
+  ]);
+
+  const handleAsk = (queryText: string) => {
+    if (!queryText.trim()) return;
+    const res = askFinoraBrain(queryText.trim(), brainState, currency);
+    setHistory((prev) => [{ q: queryText.trim(), response: res }, ...prev]);
+    setQuestion('');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleAsk(question);
+  };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e5e7eb] pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
-              FINORA Brain Intelligence
-            </h1>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#f3f1fc] text-[#5a42e8] border border-[#d8d3f8]">
-              Deterministic AI
-            </span>
+          <div className="text-[10px] font-extrabold text-[#5a42e8] uppercase tracking-wider">
+            DECISION INTELLIGENCE
           </div>
-          <p className="text-xs sm:text-sm text-[#6b7280] mt-0.5">
-            Rule-based financial advisory engine with 10 real-time optimization formulas.
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight">
+            FINORA Brain AI
+          </h1>
+          <p className="text-xs text-[#6b7280] mt-0.5">
+            Deterministic rule-based reasoning engine. Zero hallucinations, verifiable mathematical steps only.
           </p>
         </div>
+
+        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#f3f1fc] text-[#5a42e8] border border-[#e9e5f8] self-start sm:self-auto">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Deterministic AI Core</span>
+        </span>
       </div>
 
-      {/* Intelligence Health Summary Banner */}
-      <div className="bg-gradient-to-r from-[#101322] to-[#1e2338] text-white rounded-2xl p-6 shadow-md border border-[#2d334d]">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#a594fd] uppercase tracking-wider">
-              <Sparkles className="w-4 h-4" />
-              <span>Real-Time Advisory Diagnostic</span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black">
-              {healthScore.status} — {healthScore.score}/100 Grade {healthScore.grade}
-            </h2>
-            <p className="text-xs text-[#94a3b8] max-w-xl leading-relaxed">
-              Based on your active income of {formatCurrency(cashFlow.totalIncome, currency)} and monthly expenses of {formatCurrency(cashFlow.totalExpenses, currency)}, FINORA Brain has evaluated your liquidity runway, budget ratios, and debt exposure.
-            </p>
-          </div>
+      {/* Query Bar */}
+      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask a financial question: e.g. 'Can I afford $250?' or 'Who should I pay first?'"
+            className="flex-1 px-4 py-2.5 text-xs font-medium border border-[#d1d5db] rounded-xl focus:border-[#5a42e8] focus:ring-1 focus:ring-[#5a42e8] outline-none"
+          />
+          <button
+            type="submit"
+            className="px-5 py-2.5 bg-gradient-to-br from-[#765df1] to-[#6045df] hover:bg-[#6349e4] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ask Brain</span>
+          </button>
+        </form>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="p-4 rounded-xl bg-[#16192e] border border-[#2d334d] text-center">
-              <div className="text-2xl font-black text-[#10b981]">
-                {cashFlow.savingsRate.toFixed(1)}%
-              </div>
-              <div className="text-[10px] text-[#94a3b8] font-semibold mt-0.5">
-                Savings Rate
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#16192e] border border-[#2d334d] text-center">
-              <div className="text-2xl font-black text-[#a594fd]">
-                {brainState.recommendations.length}
-              </div>
-              <div className="text-[10px] text-[#94a3b8] font-semibold mt-0.5">
-                Active Signals
-              </div>
-            </div>
-          </div>
+        {/* Quick Presets */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[10px] font-bold text-[#64748b] uppercase mr-1">Suggested:</span>
+          {[
+            'What is safe to spend today?',
+            'Who should I pay first?',
+            'Can I afford $500?',
+            'How much should I save this month?',
+            'What if my income drops 20%?',
+          ].map((preset, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleAsk(preset)}
+              className="px-2.5 py-1 rounded-lg bg-[#f8fafc] hover:bg-[#f3f1fc] text-[#374151] hover:text-[#5a42e8] border border-[#e2e8f0] text-[11px] font-medium transition-colors cursor-pointer"
+            >
+              {preset}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Signal Cards */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold text-[#111827] uppercase tracking-wider">
-          Active Recommendations & Signals
-        </h3>
+      {/* Verifiable Answers Feed */}
+      <div className="space-y-5">
+        {history.map((item, index) => {
+          const res = item.response;
+          const isCrit = res.severity === 'CRITICAL' || res.severity === 'WARNING';
+          const isAttn = res.severity === 'ATTENTION';
 
-        {brainState.recommendations.length === 0 ? (
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-12 text-center shadow-xs">
-            <CheckCircle2 className="w-10 h-10 text-[#10b981] mx-auto mb-3" />
-            <h4 className="text-sm font-bold text-[#111827]">
-              All Financial Diagnostics Healthy
-            </h4>
-            <p className="text-xs text-[#6b7280] mt-1 max-w-md mx-auto">
-              No anomalies, high debt ratios, or liquidity deficits detected in your active records.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {brainState.recommendations.map((rec, i) => {
-              const isCrit = rec.severity === 'CRITICAL' || rec.severity === 'WARNING';
-              const isAttn = rec.severity === 'ATTENTION';
+          return (
+            <div
+              key={index}
+              className="bg-white border border-[#e5e7eb] rounded-2xl p-5 sm:p-6 shadow-xs space-y-4 animate-fade-in"
+            >
+              {/* Query Header */}
+              <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-[#5a42e8] text-white flex items-center justify-center font-bold text-xs">
+                    Q
+                  </div>
+                  <h3 className="text-sm font-extrabold text-[#111827]">
+                    "{item.q}"
+                  </h3>
+                </div>
 
-              return (
-                <div
-                  key={i}
-                  className={`bg-white border rounded-2xl p-5 shadow-xs flex flex-col justify-between transition-all hover:shadow-md ${
+                <span
+                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                     isCrit
-                      ? 'border-[#fecdd3]'
+                      ? 'bg-[#fee2e2] text-[#dc2626]'
                       : isAttn
-                      ? 'border-[#fef3c7]'
-                      : 'border-[#dcfce7]'
+                      ? 'bg-[#fef3c7] text-[#d97706]'
+                      : 'bg-[#ecfdf5] text-[#059669]'
                   }`}
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                          isCrit
-                            ? 'bg-[#fee2e2] text-[#dc2626]'
-                            : isAttn
-                            ? 'bg-[#fef3c7] text-[#d97706]'
-                            : 'bg-[#dcfce7] text-[#16a34a]'
-                        }`}
-                      >
-                        {rec.severity}
-                      </span>
-                      <span className="text-[10px] font-semibold text-[#6b7280] uppercase">
-                        {rec.category}
-                      </span>
-                    </div>
+                  {res.severity} · VERIFIED
+                </span>
+              </div>
 
-                    <h4 className="text-sm font-extrabold text-[#111827]">
-                      {rec.title}
-                    </h4>
-                    <p className="text-xs text-[#4b5563] mt-1.5 leading-relaxed">
-                      {rec.message}
-                    </p>
+              {/* Headline & Summary */}
+              <div>
+                <div className="text-lg font-black text-[#111827]">
+                  {res.headline}
+                </div>
+                <p className="text-xs text-[#4b5563] mt-1 leading-relaxed">
+                  {res.summary}
+                </p>
+              </div>
+
+              {/* Exact Mathematical Calculation Steps */}
+              {res.calculations && res.calculations.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-[#f8fafc] border border-[#e2e8f0] space-y-1.5">
+                  <div className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">
+                    CALCULATION STEPS
                   </div>
-
-                  <div className="mt-4 pt-3 border-t border-[#f3f4f6] text-[11px] text-[#6b7280] italic flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#5a42e8] shrink-0" />
-                    <span>{rec.fact}</span>
+                  <div className="space-y-1 text-xs font-mono text-[#1e293b]">
+                    {res.calculations.map((calc, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[#5a42e8] font-bold">›</span>
+                        <span>{calc}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              )}
+
+              {/* Recommendations & Assumptions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                {res.recommendations && res.recommendations.length > 0 && (
+                  <div className="p-3 rounded-xl bg-[#f0fdf4] border border-[#dcfce7] space-y-1">
+                    <div className="text-[10px] font-bold text-[#166534] uppercase tracking-wider">
+                      RECOMMENDED ACTION
+                    </div>
+                    {res.recommendations.map((rec, i) => (
+                      <div key={i} className="text-[#15803d]">
+                        {rec}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {res.assumptions && res.assumptions.length > 0 && (
+                  <div className="p-3 rounded-xl bg-[#f9fafb] border border-[#e5e7eb] space-y-1">
+                    <div className="text-[10px] font-bold text-[#6b7280] uppercase tracking-wider">
+                      STATED ASSUMPTIONS
+                    </div>
+                    {res.assumptions.map((ass, i) => (
+                      <div key={i} className="text-[#4b5563] italic">
+                        {ass}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
