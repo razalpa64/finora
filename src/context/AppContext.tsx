@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Account,
   AccountType,
@@ -19,7 +19,7 @@ import {
 } from '../types';
 import { analyzeFinoraBrain, createFinancialSnapshot, calculateSafeToSpend, createMonthlyPlan, calculateHealthScore, forecastCashFlow } from '../services/brain';
 import { StorageData, StorageService } from '../services/storage';
-import { pushDataToSupabase, pullDataFromSupabase, testSupabaseConnection } from '../services/supabase';
+import { pushDataToSupabase, pullDataFromSupabase, testSupabaseConnection, PulledCloudData, SyncResult } from '../services/supabase';
 
 export type AppPage =
   | 'overview'
@@ -1112,6 +1112,75 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setSupabaseConfig = updateSupabaseConfig;
 
+  // --- Cloud sync engine -----------------------------------------------------
+  // Signature of the slices that get mirrored to Supabase. Used to detect
+  // real data changes (and avoid sync loops when only UI state changes).
+  const cloudSyncSignature = (d: StorageData): string =>
+    JSON.stringify([
+      d.profiles,
+      d.accounts,
+      d.incomeSources,
+      d.transactions,
+      d.debts,
+      d.goals,
+      d.bills,
+      d.budgets,
+      d.investments,
+    ]);
+
+  const skipNextAutoSyncRef = useRef(false);
+  const lastSyncedSignatureRef = useRef<string | null>(null);
+  const syncTimerRef = useRef<number | null>(null);
+  const lastSyncErrorToastRef = useRef(0);
+
+  const runCloudPush = async (snapshot: StorageData, uid: string, signature: string): Promise<SyncResult> => {
+    const cfg = snapshot.supabaseConfig;
+    const res = await pushDataToSupabase(cfg.url, cfg.anonKey, snapshot, uid);
+    if (res.success) {
+      lastSyncedSignatureRef.current = signature;
+      updateSupabaseConfig({ connected: true, lastSyncedAt: new Date().toISOString() });
+    } else {
+      const now = Date.now();
+      if (now - lastSyncErrorToastRef.current > 120000) {
+        lastSyncErrorToastRef.current = now;
+        showToast(`Cloud sync issue: ${res.message}`, 'ERROR');
+      }
+    }
+    return res;
+  };
+
+  // Automatic cloud sync: whenever synced data changes (add account,
+  // transaction, budget, ...) and autoSync is enabled, push to Supabase
+  // after a short debounce.
+  useEffect(() => {
+    const cfg = data.supabaseConfig;
+    const uid = data.currentProfileId || '';
+    if (!cfg?.autoSync || !cfg?.connected || !uid || !cfg.url || !cfg.anonKey) return;
+
+    if (skipNextAutoSyncRef.current) {
+      skipNextAutoSyncRef.current = false;
+      return;
+    }
+
+    const signature = cloudSyncSignature(data);
+    if (signature === lastSyncedSignatureRef.current) return;
+
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current);
+    }
+    syncTimerRef.current = window.setTimeout(() => {
+      syncTimerRef.current = null;
+      void runCloudPush(storage.getData(), uid, signature);
+    }, 2000);
+
+    return () => {
+      if (syncTimerRef.current !== null) {
+        window.clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+      }
+    };
+  }, [data]);
+
   const syncToSupabase = async (): Promise<boolean> => {
     const config = data.supabaseConfig;
     if (!config.url || !config.anonKey) {
@@ -1121,13 +1190,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const test = await testSupabaseConnection(config.url, config.anonKey);
     if (!test.success) {
+      updateSupabaseConfig({ connected: false });
       showToast(test.message, 'ERROR');
       return false;
     }
 
-    const res = await pushDataToSupabase(config.url, config.anonKey, data, userId);
+    const res = await runCloudPush(data, userId, cloudSyncSignature(data));
     if (res.success) {
-      updateSupabaseConfig({ connected: true, lastSyncedAt: new Date().toISOString() });
       showToast('Synced with Supabase Cloud!', 'SUCCESS');
       return true;
     } else {
@@ -1145,6 +1214,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const res = await pullDataFromSupabase(config.url, config.anonKey, userId);
     if (res.success && res.data) {
+      const pulled: PulledCloudData = res.data;
+
+      // Merge cloud data into local state: cloud rows for the active user
+      // replace local rows; other users' local data is preserved; profiles
+      // are merged by id.
+      const mergeById = <T extends { id: string }>(local: T[], cloud: T[]): T[] => {
+        const map = new Map(local.map((x) => [x.id, x]));
+        cloud.forEach((x) => map.set(x.id, x));
+        return Array.from(map.values());
+      };
+      const replaceUserRows = <T extends { userId: string }>(local: T[], cloud: T[], uid: string): T[] => [
+        ...local.filter((x) => x.userId !== uid),
+        ...cloud,
+      ];
+
+      skipNextAutoSyncRef.current = true;
+      const updated = storage.updateData((prev) => ({
+        ...prev,
+        profiles: mergeById(prev.profiles, pulled.profiles),
+        accounts: replaceUserRows(prev.accounts, pulled.accounts, userId),
+        incomeSources: replaceUserRows(prev.incomeSources, pulled.incomeSources, userId),
+        transactions: replaceUserRows(prev.transactions, pulled.transactions, userId),
+        debts: replaceUserRows(prev.debts, pulled.debts, userId),
+        goals: replaceUserRows(prev.goals, pulled.goals, userId),
+        bills: replaceUserRows(prev.bills, pulled.bills, userId),
+        budgets: replaceUserRows(prev.budgets, pulled.budgets, userId),
+        investments: replaceUserRows(prev.investments, pulled.investments, userId),
+      }));
+      lastSyncedSignatureRef.current = cloudSyncSignature(updated);
+      setData(updated);
       showToast('Data loaded from Supabase!', 'SUCCESS');
       return true;
     } else {

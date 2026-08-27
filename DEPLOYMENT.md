@@ -26,6 +26,17 @@ Defined in [`vercel.json`](./vercel.json):
 - **API routes:** `/api/*` is excluded from the SPA fallback and served by serverless functions in [`api/`](./api/) — e.g. [`GET /api/health`](./api/health.js)
 - **Caching:** hashed assets under `/assets/*` are cached immutably (1 year); API responses are never cached
 
+## Database (Supabase) setup
+
+The app talks to the central Supabase project with its publishable key. **The database schema must match the app** (text ids like `usr_xxx`/`acc_xxx`, no `auth.users` foreign keys, permissive RLS for the publishable key):
+
+- **Existing project (created with the old v1 schema):** run [`supabase/migrate_text_ids.sql`](./supabase/migrate_text_ids.sql) once in the Supabase SQL Editor. Without it, every write fails silently-rejects with `invalid input syntax for type uuid`.
+- **Fresh project:** run [`supabase/schema.sql`](./supabase/schema.sql) (v2, matches the app out of the box).
+
+Once the schema matches, the app **auto-syncs**: every add/edit/delete (accounts, transactions, budgets, …) is pushed to Supabase a couple of seconds after the change, with deletes mirrored too. Settings → *Sync* still offers a manual push/pull, and now reports real errors instead of fake success.
+
+> ⚠️ Security note: the publishable key is part of the frontend bundle by design (local-first personal app with a central personal database), so the permissive policies make the data writable by anyone who knows the project URL. For anything beyond personal use, adopt Supabase Auth and scope the policies to `auth.uid() = user_id`.
+
 ## Environment variables
 
 **None required.** The Supabase connection settings are centralized in [`src/services/storage.ts`](./src/services/storage.ts) (`CENTRAL_SUPABASE_URL` / `CENTRAL_SUPABASE_KEY`), so the production build works out of the box. The `.env` file is only a local-development convenience.
